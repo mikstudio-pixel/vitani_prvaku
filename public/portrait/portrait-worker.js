@@ -2,7 +2,7 @@
 let models;
 async function prepare() {
   const { FilesetResolver, FaceDetector, ImageSegmenter } = await import('./runtime/vision_bundle.mjs');
-  const files = await FilesetResolver.forVisionTasks(new URL('./runtime/wasm/', self.location).href);
+  const files = await FilesetResolver.forVisionTasks(new URL('./runtime/wasm', self.location).href);
   const face = await FaceDetector.createFromOptions(files, {
     baseOptions: { modelAssetPath: new URL('./face.tflite', self.location).href, delegate: 'CPU' },
     runningMode: 'IMAGE', minDetectionConfidence: .5,
