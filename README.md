@@ -16,11 +16,11 @@ Set `NEXT_PUBLIC_APP_VERSION` to the release commit;
 
 The visitor view contains only a continuously running liquid simulation and its
 24 LEDs. There are no instructions, countdowns, story panels, sounds or final QR.
-Open `?operator=1` before the event, press **Připravit kameru**, allow the front
-camera and device motion, check framing, then press **Skrýt obsluhu**. The camera
-stays warm when this panel closes. The O key also toggles operator controls.
-On the plain visitor URL, the first touch requests camera permission directly;
-start the one-second hold after permission is granted. HTTPS is required.
+There are no operator panels, camera preview, calibration controls or display
+switchers, including on old `operator=1` URLs. The first touch on the bowl asks
+for camera and iPad motion permission. After granting permission, hold again
+for one second. HTTPS is required. Camera permission comes from the browser;
+there are no app buttons surrounding the bowl.
 
 One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
@@ -32,9 +32,8 @@ three seconds, then dissolves over two seconds back into the previous liquid.
 The next visitor can then start automatically. No image overlay is used.
 
 Frames and masks remain in device memory; nothing is uploaded, saved or sent to
-face recognition. Completing the portrait clears its GPU mask. Reset, quality
-change and page exit clear the active image; hiding/leaving the page also stops
-the camera. Prepare it again after returning. **Nový návštěvník** or R resets
+face recognition. Completing the portrait clears its GPU mask. Reset and page exit clear the active image; hiding/leaving the page also stops
+the camera. Tap the bowl again after returning to prepare the camera. R resets
 immediately. Space/Enter can be held for capture; mouse dragging and arrow keys
 control tilt, while the iPad uses its gyroscope. Provide even lighting and test
 actual Safari permission, framing and performance on the event iPad.
@@ -68,7 +67,7 @@ Asset provenance remains in `web/sounds/README.md` and the font license files
 in `public/fonts/`. Legacy exhibition modules and assets remain in the source,
 but are not part of the visitor flow.
 
-Local-only `/tests/browser-portrait.html?operator=1` uses a synthetic canvas
+Local-only `/tests/browser-portrait.html` uses a synthetic canvas
 camera, never hardware. It exercises cancellation, capture, the flash/reveal
 sequence, reset and consecutive visitors. `/tests/browser-portrait-fluid.html`
 exercises the actual GPU mask, gradual gathering, dissolve and reset.

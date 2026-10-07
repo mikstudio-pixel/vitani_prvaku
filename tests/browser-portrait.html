@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="cs" class="dark">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) aside {visibility:hidden}</style></head>
-<body><div id="root"></div><aside style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <output id="result">Umělá kamera; nejprve ji připravte.</output></aside>
+<body><div id="root"></div><aside style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <output id="result">Umělá kamera; nejprve klepněte na mísu.</output></aside>
 <script type="module">
   import React from 'react';
   import { createRoot } from 'react-dom/client';
@@ -28,7 +28,7 @@
     const result = document.getElementById('result'), root = document.querySelector('main'), bowl = document.querySelector('.bowl');
     const pointer = (type, id, x = 200, y = 200) => bowl.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: id, pointerType: 'touch', clientX: x, clientY: y }));
     try {
-      assert(root.dataset.camera === 'ready', 'Nejprve připravte umělou kameru');
+      assert(root.dataset.camera === 'ready', 'Nejprve klepněte na mísu pro přípravu umělé kamery');
       pointer('pointerdown', 9001); await wait(250); pointer('pointerup', 9001); await wait(1000);
       assert(root.dataset.portrait === 'idle', 'Short touch must not take a photograph');
       pointer('pointerdown', 9002); pointer('pointermove', 9002, 250, 200); await wait(1200); pointer('pointerup', 9002);

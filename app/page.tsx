@@ -1,13 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FluidBowl, WAVE_STRENGTH, WAVE_VISCOSITY, type FluidStats, type RimMode } from '@/lib/fluid';
-import { CalibrationPanel, useDisplayCalibration } from '@/components/display-calibration';
+import { FluidBowl } from '@/lib/fluid';
 import { APP_VERSION } from '@/lib/app-version';
 import { clampTilt, type Tilt } from '@/lib/tilt';
 import { registerPrototypeTools } from '@/lib/prototype-tools';
 import { DeviceTilt, SENSORS_OFF } from '@/lib/device-tilt';
-import { bindFrameRate } from '@/lib/frame-rate-settings';
 import { usePortraitCamera } from '@/components/use-portrait-camera';
 import { PortraitRing } from '@/components/portrait-ring';
 
@@ -15,8 +13,6 @@ const FLASH_SECONDS = .8;
 type Phase = 'idle' | 'flash' | 'revealing' | 'holding' | 'dissolving';
 
 export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }) {
-  const settings = useDisplayCalibration('center');
-  const { x, y, scale } = settings.calibration;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bowlRef = useRef<HTMLButtonElement>(null);
   const engine = useRef<FluidBowl | null>(null);
@@ -25,19 +21,12 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const cancelHold = useRef(() => {});
   const pointer = useRef<number | null>(null);
   const liveTilt = useRef<Tilt>({ x: 0, y: 0 });
-  const [operator, setOperator] = useState(() => new URLSearchParams(location.search).get('operator') === '1');
   const [phase, setPhase] = useState<Phase>('idle');
   const [flash, setFlash] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [paused, setPaused] = useState(document.hidden);
   const [error, setError] = useState('');
-  const [quality, setQuality] = useState<'auto' | 'performance' | 'detail'>('auto');
-  const [stats, setStats] = useState<FluidStats | null>(null);
-  const [rimMode, setRimMode] = useState<RimMode>('curved');
   const [sensor, setSensor] = useState(SENSORS_OFF);
-  const [waveStrength, setWaveStrength] = useState<number>(WAVE_STRENGTH.default);
-  const [waveViscosity, setWaveViscosity] = useState<number>(WAVE_VISCOSITY.default);
-  const waveSettings = useRef({ strength: waveStrength, viscosity: waveViscosity });
   const updateTilt = useCallback((value: Tilt) => {
     liveTilt.current = clampTilt(value); engine.current?.setTilt(liveTilt.current);
   }, []);
@@ -65,10 +54,9 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     const canvas = canvasRef.current;
     if (!canvas) return;
     let bowl: FluidBowl | null = null;
-    let unbind: (() => void) | undefined;
     const lost = (event: Event) => {
       event.preventDefault(); reset(); bowl?.dispose(); engine.current = null;
-      setReady(false); setError('Grafika byla přerušena. Obnov aplikaci nebo změň režim.');
+      setReady(false); setError('Grafika byla přerušena. Obnov aplikaci.');
     };
     const visibility = () => {
       if (document.hidden) reset();
@@ -80,13 +68,12 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     };
     try {
       const params = new URLSearchParams(location.search);
-      const profile = quality === 'auto' ? navigator.maxTouchPoints > 1 ? 'performance' : 'detail' : quality;
-      bowl = new FluidBowl(canvas, { easterEgg: false, quality: profile, onStats: setStats, automaticCrests: true,
+      const profile = navigator.maxTouchPoints > 1 ? 'performance' : 'detail';
+      bowl = new FluidBowl(canvas, { easterEgg: false, quality: profile, automaticCrests: true,
         stirring: params.get('stir') !== '0', dissolving: params.get('dissolve') !== '0',
         organicSeparation: params.get('organic') !== '0', ambientFlow: params.get('drift') !== '0' });
       engine.current = bowl;
-      bowl.setWaveStrength(waveSettings.current.strength); bowl.setWaveViscosity(waveSettings.current.viscosity);
-      bowl.setTilt(liveTilt.current); unbind = bindFrameRate(fps => bowl?.setFrameRate(fps));
+      bowl.setTilt(liveTilt.current);
       setError(''); setReady(true); visibility();
     } catch (cause) {
       setReady(false); setError(cause instanceof Error ? cause.message : 'Simulaci se nepodařilo spustit.');
@@ -95,13 +82,12 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('blur', blur); window.addEventListener('pagehide', reset);
     return () => {
-      pending.current = null; cancelHold.current(); unbind?.(); bowl?.dispose(); engine.current = null;
+      pending.current = null; cancelHold.current(); bowl?.dispose(); engine.current = null;
       canvas.removeEventListener('webglcontextlost', lost);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('blur', blur); window.removeEventListener('pagehide', reset);
     };
-  }, [quality, reset, updateTilt]);
-  useEffect(() => { engine.current?.setRimMode(rimMode); }, [rimMode, quality, ready]);
+  }, [reset, updateTilt]);
   useEffect(() => {
     if (!ready || paused) return;
     let animation = 0;
@@ -121,11 +107,10 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     };
     animation = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animation);
-  }, [ready, paused, quality]);
+  }, [ready, paused]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
-      if (event.key.toLowerCase() === 'o') setOperator(value => !value);
       if (event.key.toLowerCase() === 'r') reset();
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
@@ -137,34 +122,8 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   };
 
   return <main className="installation" data-portrait={phase} data-camera={photo.state.phase} data-version={APP_VERSION}>
-    {/* Keep the video mounted and playing when the operator closes setup. */}
-    <video ref={photo.videoRef} muted playsInline className={operator ? 'camera-preview' : 'camera-source'} aria-label="Náhled kamery pro obsluhu" aria-hidden={!operator} />
-    {operator && <>
-      <CalibrationPanel display="center" {...settings} />
-      <section className="portrait-operator" aria-label="Nastavení obsluhy">
-        <p>{photo.captureError || photo.state.message}</p>
-        {error && <p role="alert">{error}</p>}
-        {sensor.phase === 'error' && <p>{sensor.message}</p>}
-        <button type="button" onClick={prepare} disabled={photo.state.phase === 'preparing'}>Připravit kameru</button>
-        <button type="button" onClick={photo.stop}>Vypnout kameru</button>
-        <button type="button" onClick={reset}>Nový návštěvník</button>
-        <button type="button" onClick={() => setOperator(false)}>Skrýt obsluhu</button>
-        <label>Režim <select value={quality} onChange={event => { reset(); setStats(null); setQuality(event.target.value as typeof quality); }}>
-          <option value="auto">Automaticky</option><option value="performance">Úsporný</option><option value="detail">Detailní</option>
-        </select></label>
-        <label>Vlny <input type="range" min={WAVE_STRENGTH.min} max={WAVE_STRENGTH.max} step={WAVE_STRENGTH.step} value={waveStrength} onChange={event => {
-          const value = event.currentTarget.valueAsNumber; setWaveStrength(value); waveSettings.current.strength = value; engine.current?.setWaveStrength(value);
-        }} /></label>
-        <label>Viskozita <input type="range" min={WAVE_VISCOSITY.min} max={WAVE_VISCOSITY.max} step={WAVE_VISCOSITY.step} value={waveViscosity} onChange={event => {
-          const value = event.currentTarget.valueAsNumber; setWaveViscosity(value); waveSettings.current.viscosity = value; engine.current?.setWaveViscosity(value);
-        }} /></label>
-        <label>Okraj <select value={rimMode} onChange={event => setRimMode(event.target.value as RimMode)}>
-          <option value="curved">Plynulý</option><option value="under">Pod okrajem</option><option value="hybrid">Kompromis</option><option value="edge">U okraje</option>
-        </select></label>
-        {stats && <p>{stats.fps} FPS</p>}
-      </section>
-    </>}
-    <button ref={bowlRef} type="button" className="bowl" disabled={!ready} style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}
+    <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
+    <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."
       onPointerDown={event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -193,7 +152,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         if (direction && sensor.phase !== 'active') { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
         if (event.key === 'Escape') { photo.cancel(); device.current?.stop(); release(); }
       }}>
-      <span className="fluid-window" data-rim-mode={rimMode}><canvas ref={canvasRef} className="fluid-canvas" aria-label="Živá simulace světlé a tmavé kapaliny" /></span>
+      <span className="fluid-window" data-rim-mode="curved"><canvas ref={canvasRef} className="fluid-canvas" aria-label="Živá simulace světlé a tmavé kapaliny" /></span>
       <PortraitRing progress={photo.progress} flash={flash} />
     </button>
   </main>;
