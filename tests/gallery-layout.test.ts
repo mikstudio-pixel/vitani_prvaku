@@ -7,6 +7,7 @@ test('all portraits fit one screen on landscape and portrait displays', () => {
     for (const count of [0, 1, 2, 3, 5, 7, 9, 12, 17, 30, 99, 100, 999, 1000]) {
       const layout = galleryLayout(count, width, height);
       assert.ok(layout.columns * layout.rows >= count);
+      assert.ok(layout.rows <= 2);
       assert.ok(layout.size * layout.columns + layout.gap * (layout.columns - 1) <= width + .001);
       assert.ok(layout.size * layout.rows + layout.gap * (layout.rows - 1) <= height + .001);
       assert.ok(layout.size > 0);
@@ -28,9 +29,12 @@ test('three portraits form a centered triangle even on a wide display', () => {
   }
 });
 
-test('odd-count rows are centered, staggered and do not overlap', () => {
+test('odd counts stay in two centered rows without overlap', () => {
   for (const count of [5, 7, 9, 17, 99]) {
     const layout = galleryLayout(count, 1880, 1040);
+    assert.equal(layout.rows, 2);
+    assert.equal(layout.positions.filter(position => position.row === 1).length, Math.ceil(count / 2));
+    assert.equal(layout.positions.filter(position => position.row === 2).length, Math.floor(count / 2));
     for (let row = 1; row <= layout.rows; row++) {
       const positions = layout.positions.filter(position => position.row === row);
       assert.equal(positions[0].column + positions.at(-1)!.column + 1, layout.columns * 2 + 1);
