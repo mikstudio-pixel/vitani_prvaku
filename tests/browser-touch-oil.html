@@ -94,8 +94,17 @@ document.getElementById('run').onclick = () => {
     assert(maximum(field(bowl.touchPigment.read)) < .03, 'Release must fade the pigment');
     bowl.reset();
     assert(field(bowl.touchPigment.read).every(value => value === 0) && colorCount(pixels()) === 0, 'Reset must clear all color');
+    // The visible rim extends beyond the solver domain in these modes.
+    for (const mode of ['curved', 'hybrid']) {
+      bowl.setRimMode(mode); bowl.reset(); bowl.setTouchAt({ x: .99, y: .5 });
+      for (let i = 0; i < 15; i++) bowl.tick(1/30);
+      const rim = pixels(), x = Math.floor(canvas.width*.985), y = Math.floor(canvas.height*.5);
+      const offset = (y*canvas.width+x)*4;
+      assert(Math.max(...rim.subarray(offset,offset+3))-Math.min(...rim.subarray(offset,offset+3)) > 10, 'Pigment must extend through the visible '+mode+' rim');
+    }
+    bowl.reset();
     assert(gl.getError() === gl.NO_ERROR, 'GPU passes must be error-free');
-    output.textContent = `PASS: ${colored} colored liquid pixels, flat liquid colored, bounded pigment, fluid transport, rim alignment, unchanged material, monochrome portrait, paused transport, release fade, reset`;
+    output.textContent = `PASS: ${colored} colored liquid pixels, flat liquid colored, bounded pigment, fluid transport, rim alignment and tint, unchanged material, monochrome portrait, paused transport, release fade, reset`;
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
 };
 document.getElementById('preview').onclick = () => {

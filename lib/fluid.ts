@@ -406,7 +406,7 @@ void main(){
  vec3 normal=normalize(vec3(-slope*1.35-gradient*0.004-d*0.28+tilt*0.06,1.0));
  vec3 col=mix(vec3(0.90),vec3(0.045),dark);
  if(pigmentVisible){
-  vec4 pigment=sampleBowl(touchPigment,uv);
+  vec4 pigment=sampleLinear(touchPigment,wall(uv));
   vec3 bodyColor=pigment.rgb/max(pigment.a,0.00001);
   // Tint the material before lighting, preserving the two phases and highlights.
   col=mix(col,bodyColor*mix(0.90,0.24,dark),pigment.a);
@@ -899,6 +899,10 @@ export class FluidBowl {
     this.draw('phaseNoise', this.phaseNoise, { separationSeed: this.separationSeed });
     this.noiseSeed = this.separationSeed;
   }
+  private stepPigment(dt: number, depositing: boolean) {
+    this.draw('pigmentStep', this.touchPigment.write, { pigment: this.touchPigment.read, velocity: this.materialVelocity(), dt, hue: this.elapsed * .35, transporting: !this.physicsPaused, depositing });
+    this.swap(this.touchPigment);
+  }
   private stepMaterial(dt: number) {
     const visitor = this.portraitActive;
     const pattern = visitor ? this.portraitPattern : this.bobPattern;
@@ -1246,8 +1250,7 @@ export class FluidBowl {
       }
     }
     else if (this.easterEggActive || this.portraitActive) this.stepMaterial(dt);
-    this.draw('pigmentStep', this.touchPigment.write, { pigment: this.touchPigment.read, velocity: this.materialVelocity(), dt, hue: this.elapsed * .35, transporting: !this.physicsPaused, depositing: attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive });
-    this.swap(this.touchPigment);
+    this.stepPigment(dt, attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive);
     this.reportFrame(time);
     this.reportTelemetry(time);
     this.render();
@@ -1270,11 +1273,12 @@ export class FluidBowl {
       const waves = () => this.advanceFlow(this.velocity, this.surface, force, dt, false);
       const current = () => this.advanceFlow(this.mixingVelocity, this.mixingSurface, force, dt, true);
       const material = () => this.stepMaterial(dt);
+      const pigment = () => this.stepPigment(dt, false);
       const display = () => this.render();
-      const frame = () => { waves(); current(); material(); display(); };
+      const frame = () => { waves(); current(); material(); pigment(); display(); };
       for (let i = 0; i < 12; i++) frame();
       const timings: Record<string, number> = {};
-      for (const [name, run] of Object.entries({ waves, current, material, display, frame })) {
+      for (const [name, run] of Object.entries({ waves, current, material, pigment, display, frame })) {
         const samples = [];
         for (let batch = 0; batch < 6; batch++) {
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
