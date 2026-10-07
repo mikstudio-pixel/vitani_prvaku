@@ -82,6 +82,7 @@ export function useSideScenario(sync: TraySync) {
       const sharedElapsed = shared ? shared.elapsed + age : 0;
       const scenario = shared ? { stage: shared.stage, deadline: shared.deadline,
         remaining: Math.max(0, shared.remaining - age), countdown: countdownFrame(sharedElapsed).number ?? 0,
+        countdownStart: countdownFrame(sharedElapsed).start,
         mixed: sample?.mixed ?? null, progress: sample?.mixed ?? null }
         : machine.current.step(now, paused || frozen || (introducing && intro.stage === 'waiting') ? null : sample);
       const scenarioElapsed = shared ? sharedElapsed : machine.current.stageElapsed;

@@ -82,7 +82,7 @@ export function RightDisplay({ scenario, sample, source = 'local', monochrome = 
   const gyro = readings.sample?.gyro && Object.values(readings.sample.gyro).every(Number.isFinite) ? readings.sample.gyro : null;
   const preparing = ['panels', 'authorized', 'decision', 'countdown'].includes(stage);
   const displayedProgress = visualMixingProgress(preparing ? 0 : exiting ? dataMixed : progress);
-  const starting = stage === 'countdown' && scenario.countdown === 0;
+  const starting = stage === 'countdown' && scenario.countdownStart;
   const markup = stage === 'success' ? SCREENS['keep-mixing'].markup : starting ? countdownStartMarkup : SCREENS[stage].markup;
   return <div className="right-display" data-stage={stage}>
     <span style={{ filter: `grayscale(${monochrome})` }}><TypewriterArtwork entry={stage === 'detected' ? 'detected' : ''} markup={markup} retrySeconds={stage === 'hungry' ? retrySeconds : null} flickerMessage={stage === 'connecting' || stage === 'welcome' || stage === 'restart'} /></span>

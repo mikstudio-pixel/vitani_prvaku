@@ -49,6 +49,7 @@ export function selectMotion(remote: (MotionSample & { phase: TrayTelemetry['pha
 export type ScenarioSnapshot = {
   stage: ScenarioStage;
   countdown: number;
+  countdownStart: boolean;
   remaining: number;
   deadline: 'start' | 'resume' | null;
   progress: number | null;
@@ -68,7 +69,7 @@ export function scenarioPreview(stage: ScenarioStage): ScenarioSnapshot {
     : stage === 'mixing' ? 0.3 : stage === 'keep-mixing' ? 0.7 : 0.1;
   const deadline = stage === 'analysis' || stage === 'stir-prompt' || stage === 'not-mixing' ? 'start' : null;
   return {
-    stage, countdown: 3, mixed, progress: mixed, deadline,
+    stage, countdown: 3, countdownStart: false, mixed, progress: mixed, deadline,
     remaining: stage === 'restart' ? SCENARIO.restart : stage === 'hungry' ? SCENARIO.retry : finished || !deadline ? 0 : stage === 'not-mixing' ? 3.2 : stage === 'stir-prompt' ? 5 : 7,
   };
 }
@@ -171,7 +172,7 @@ export class MixingScenario {
     }
     const deadline = !analyzing ? null : !this.startedMixing ? 'start' : this.idleSeconds >= SCENARIO.idlePrompt ? 'resume' : null;
     return {
-      stage, countdown: countdownFrame(this.elapsed).number ?? 0, deadline,
+      stage, countdown: countdownFrame(this.elapsed).number ?? 0, countdownStart: countdownFrame(this.elapsed).start, deadline,
       remaining: stage === 'restart' ? Math.max(0, SCENARIO.restart - this.elapsed)
         : stage === 'hungry' ? Math.max(0, SCENARIO.retry - this.elapsed) : deadline === 'start' ? Math.max(0, SCENARIO.startWindow - this.elapsed)
         : deadline === 'resume' ? Math.max(0, SCENARIO.pauseWindow - this.idleSeconds) : 0,

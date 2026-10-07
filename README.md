@@ -45,3 +45,10 @@ and twenty-second restart are preserved; QR reveal settings are limited to
 5–20 seconds so they fit the final countdown. Asset provenance remains
 in `web/sounds/README.md` and the font license files in `public/fonts/`; verify
 that the event's licenses cover public web use before advertising the site.
+
+For the browser recovery regression, start `npm run dev` and open
+`/tests/browser-recovery.html` on the printed local port. The fixture deliberately
+fails the first WebGL allocation and denies motion permission. Select Úsporný
+in Nastavení: the graphics error must disappear and the bowl must become active.
+Press Enter on the bowl to deny sensors, then use arrow keys; the scenario must
+still reach the mixing prompt. This fixture is not included in the Pages build.

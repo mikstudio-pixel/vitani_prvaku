@@ -156,3 +156,21 @@ void test('existing thirty-second retry migrates once to fifteen while preservin
   bindIntroSettings()();
   assert.equal(SCENARIO.retry, 12, 'Later edits are preserved');
 });
+
+void test('scenario snapshots distinguish all countdown gaps from the start instruction', () => {
+  applyIntroSettings({ ...DEFAULT_INTRO, 'story.authorized': 0, 'story.decision': 0,
+    'countdown.3.duration': .1, 'countdown.3.gapAfter': .2,
+    'countdown.2.duration': .1, 'countdown.2.gapAfter': .2,
+    'countdown.1.duration': .1, 'countdown.1.gapAfter': .2 });
+  const machine = new MixingScenario();
+  machine.beginAfterWake({ skipIntro: true });
+  const sample = { gyro: null, activity: 0, receivedAt: 0 };
+  machine.step(0, sample);
+  for (const [time, number, start] of [[.01, 3, false], [.15, 0, false], [.31, 2, false],
+    [.45, 0, false], [.61, 1, false], [.75, 0, false], [.91, 0, true]] as const) {
+    const snapshot = machine.step(time, sample);
+    assert.equal(snapshot.stage, 'countdown');
+    assert.equal(snapshot.countdown, number);
+    assert.equal(snapshot.countdownStart, start);
+  }
+});

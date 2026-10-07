@@ -179,6 +179,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       // eslint-disable-next-line react/react-compiler -- Match the control to the initial URL setting used by the external engine.
       setWaveStrength(waveSettings.current.strength);
       // eslint-disable-next-line react/react-compiler -- Reflect initialization of the external WebGL engine.
+      setError('');
       setReady(true);
       reportSimulationReady(true);
     } catch (cause) {
@@ -223,7 +224,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     const publish = () => {
       const engine = engineRef.current;
       setEasterEggActive(engine?.easterEggActive ?? false);
-      if (!engine || !ready || !engine.running || error || (sensor.phase === 'error' && !simulation.current)) {
+      if (!engine || !ready || !engine.running || error) {
         audio.current?.stop();
         setIndicatorFrame(indicator.current.step(performance.now() / 1000, null));
         publishTrayState({ phase: 'unavailable', tiltX: 0, tiltY: 0, activity: 0, oil: 0, elapsed: 0 });
@@ -277,7 +278,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     if (!ready) return;
     const timer = window.setInterval(publish, 1000 / 30);
     return () => window.clearInterval(timer);
-  }, [ready, paused, error, sensor.phase, quality, resetPortion]);
+  }, [ready, paused, error, quality, resetPortion]);
 
   return (
     <main className="installation" data-version={APP_VERSION} data-wake-stage={intro.stage} data-easter-egg={easterEggActive ? 'bob' : undefined}>
