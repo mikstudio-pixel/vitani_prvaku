@@ -1,0 +1,14 @@
+/* iPad 10: 264 physical pixels/inch at 2× → 104 CSS px ≈ 20 mm. */
+.mixing-indicator { position: fixed; left: 50%; top: 50%; z-index: 0; width: 104px; height: 104px; border-radius: 50%; pointer-events: none; background: #fff; }
+
+.mixing-prompt { position: absolute; inset: 0; pointer-events: none; background: #000c; }
+.mixing-prompt > img { filter: brightness(0) invert(1); display: block; width: 100%; height: 100%; }
+.mixing-prompt[data-prompt='1'] > img {
+  transform: translate(-30px, 0px);
+}
+.mixing-finish { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font: 700 72px/1 'PP Neue Machina', sans-serif; }
+
+.arrival-prompt { display: grid; place-items: center; }
+.arrival-prompt > span { color: #fff; text-align: center; font: 700 clamp(28px, 6vw, 72px)/1.15 'PP Neue Machina', sans-serif; }
+.arrival-prompt svg { display: block; width: 8.6111em; height: 2.2917em; }
+.arrival-prompt [data-arrival-glyph] { visibility: hidden; }

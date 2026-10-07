@@ -1,0 +1,44 @@
+.tray-connection {
+  position: fixed;
+  z-index: 2;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: max(12px, env(safe-area-inset-left));
+  pointer-events: none;
+  padding: 8px 12px;
+  color: #a3a3a3;
+  background: #111d;
+  border-radius: 8px;
+  font: 13px 'SFMono-Regular', Consolas, monospace;
+}
+@font-face { font-family: 'PP Neue Machina'; src: url('../public/fonts/PPNeueMachina-Variable.ttf') format('truetype'); font-weight: 100 900; font-style: normal; font-display: block; }
+@font-face { font-family: 'Space Mono'; src: url('../public/fonts/SpaceMono-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: block; }
+.tray-display { position: fixed; inset: 0; overflow: hidden; background: #000; color: #bfbab2; }
+/* Original Figma coordinates. Fitting transforms the entire composition. */
+.tray-artwork { position: absolute; left: 50%; top: 50%; width: 744px; height: 1073px; transform-origin: center; pointer-events: none; }
+.tray-artwork > img { display: block; width: 744px; height: 1073px; max-width: none; user-select: none; -webkit-user-select: none; }
+.scenario-artwork, .scenario-artwork > svg { display: block; width: 744px; height: 1073px; }
+.left-display, .left-display > svg { margin: 0; display: block; width: 744px; height: 1073px; }
+.colony-value-text { font: 12px 'Space Mono', monospace; font-variant-numeric: tabular-nums; transition: fill 240ms ease; }
+.colony-value-badge { transition: fill 240ms ease; }
+@media (prefers-reduced-motion: reduce) { .colony-value-text, .colony-value-badge { transition: none; } }
+/* Outlined artwork retains Figma typography; live readings use its Space Mono. */
+.right-display, .right-display > img, .scenario-readings { position: absolute; inset: 0; width: 744px; height: 1073px; max-width: none; }
+.scenario-readings { overflow: visible; fill: #bfbab2; font-family: 'Space Mono', monospace; font-weight: 400; font-variant-numeric: tabular-nums; }
+.scenario-percent { font-family: 'PP Neue Machina', 'Space Mono', monospace; font-weight: 700; }
+.scenario-controls { margin: 16px 0; padding-bottom: 12px; border-bottom: 1px solid #444; }
+.scenario-source { display: block; margin-bottom: 10px; color: #c5a5ff; }
+.scenario-controls label, .scenario-controls select { display: block; width: 100%; margin: 8px 0; }
+.scenario-controls select { min-height: 44px; }
+.scenario-demo-buttons { display: flex; gap: 6px; margin: 8px 0; }
+.scenario-demo-buttons button { flex: 1; padding: 4px 8px; }
+
+.gyroscope-model { position: absolute; left: 565px; top: 839px; width: 140px; height: 140px; pointer-events: none; }
+
+.typewriter-artwork { position: absolute; inset: 0; width: 744px; height: 1073px; }
+.typewriter-caption { position: absolute; inset: 0; width: 744px; height: 1073px; pointer-events: none; }
+
+.scenario-data-layer { position: absolute; inset: 0; pointer-events: none; }
+/* Operator controls never enter the exhibition image, including open panels. */
+html[data-presentation="true"] [data-operator-ui] {
+  display: none !important;
+}
