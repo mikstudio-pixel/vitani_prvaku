@@ -8,8 +8,9 @@ Website: https://mikstudio-pixel.github.io/vitani_prvaku/
 
 Use Node.js 24, then `npm ci` and `npm run dev` (port 3001).
 Run `npm run typecheck`, `npm test`, and `npm run build` before review.
-For the Pages build, set `NEXT_PUBLIC_BASE_PATH=/vitani_prvaku` and
-`NEXT_PUBLIC_APP_VERSION` to the release commit. `npm run preview` serves `dist`.
+Production builds and previews default to `/vitani_prvaku/`.
+Set `NEXT_PUBLIC_APP_VERSION` to the release commit;
+`NEXT_PUBLIC_BASE_PATH` can explicitly override the build path. `npm run preview` serves `dist`.
 
 Tap the bowl in Safari to grant sensor access and unlock audio. Desktop users
 can drag the bowl or use arrow keys. The view switcher shows the center, left,
