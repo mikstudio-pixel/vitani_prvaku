@@ -33,3 +33,11 @@ export async function publishPortrait(id: string, blob: Blob, userId: string) {
   const { error } = await portraitBackend.from('portraits').insert({ id, object_path: path, created_by: userId });
   if (error && error.code !== '23505') throw error;
 }
+
+export async function deletePortrait(row: PortraitRow) {
+  const { error: fileError } = await portraitBackend.storage.from('portraits').remove([row.object_path]);
+  if (fileError) throw fileError;
+  const { error, data } = await portraitBackend.from('portraits').delete().eq('id', row.id).select('id');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Portrét nelze smazat. Ověř oprávnění účtu.');
+}

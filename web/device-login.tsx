@@ -20,6 +20,7 @@ export function DeviceLogin() {
     <p>Na iPadu přihlas účet pro fotografování. Na druhém počítači účet pro galerii.</p>
     {access ? <><p>{access.canUpload ? 'Fotografování a ukládání povoleno.' : 'Prohlížení galerie povoleno.'}</p>
       <a className="login-action" href={access.canUpload ? `${base}/` : `${base}/galerie/`}>{access.canUpload ? 'Otevřít misku' : 'Otevřít galerii'}</a>
+      {access.canUpload && <a className="login-action" href={`${base}/galerie/`}>Otevřít galerii</a>}
       <button onClick={async () => { await portraitBackend.auth.signOut(); setAccess(null); }}>Odhlásit zařízení</button></> :
       <form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} /></label>
       <label>Heslo<input type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} /></label>

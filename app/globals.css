@@ -87,14 +87,21 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .device-login button, .device-login .login-action { display: inline-block; margin-right: 12px; padding: 10px 16px; border: 1px solid #555; border-radius: 6px; cursor: pointer; text-decoration: none; }
 .device-login .login-action { background: #eee; color: #111; }
 .device-login .login-note, .device-login small { color: #999; font-size: 12px; }
-.portrait-gallery { min-height: 100dvh; background: #111; color: #eee; padding: 20px; font: 16px/1.5 sans-serif; }
-.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-.gallery-portrait { margin: 0; aspect-ratio: 1; overflow: hidden; border-radius: 50%; background: #262626; animation: portrait-arrive .7s ease-out; }
-.gallery-portrait img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-.gallery-portrait button { width: 100%; height: 100%; cursor: pointer; color: #aaa; }
-.gallery-empty { min-height: calc(100dvh - 40px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.portrait-gallery { position: fixed; inset: 0; height: 100dvh; overflow: hidden; background: #111; color: #eee; padding: 20px; font: 16px/1.5 sans-serif; }
+.gallery-grid { display: grid; width: 100%; height: 100%; align-content: center; justify-content: center; }
+.gallery-portrait { position: relative; container-type: inline-size; margin: 0; min-width: 0; min-height: 0; aspect-ratio: 1; border-radius: 50%; background: #262626; animation: portrait-arrive .7s ease-out; }
+.gallery-portrait img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; image-rendering: pixelated; }
+.gallery-retry { width: 100%; height: 100%; cursor: pointer; color: #aaa; font-size: min(12px, 12cqi); }
+.gallery-delete { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: min(28px, 35cqi); height: min(28px, 35cqi); padding: 0; border: 1px solid #777; border-radius: 50%; background: #171717e6; color: #eee; cursor: pointer; opacity: .55; }
+.gallery-delete:hover, .gallery-delete:focus-visible { opacity: 1; background: #a52727; }
+.gallery-delete svg { width: 60%; height: 60%; }
+.gallery-delete:disabled { cursor: wait; }
+.gallery-delete-error { position: absolute; bottom: 0; left: 0; right: 0; padding: 4px; background: #601b1b; font-size: min(11px, 10cqi); text-align: center; }
+.gallery-spinner { animation: gallery-spin 1s linear infinite; }
+.gallery-empty { position: absolute; inset: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
 .gallery-empty a { color: #aaa; text-decoration: underline; }
 .gallery-status { position: fixed; bottom: 12px; left: 12px; color: #aaa; font-size: 12px; }
 .gallery-version { position: fixed; bottom: 10px; right: 12px; font-size: 10px; color: #777; text-decoration: none; }
 @keyframes portrait-arrive { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+@keyframes gallery-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .gallery-portrait { animation: none; } }
