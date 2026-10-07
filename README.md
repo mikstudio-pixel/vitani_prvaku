@@ -13,9 +13,11 @@ Set `NEXT_PUBLIC_APP_VERSION` to the release commit;
 `NEXT_PUBLIC_BASE_PATH` can explicitly override the build path. `npm run preview` serves `dist`.
 
 Tap the bowl in Safari to grant sensor access and unlock audio. Desktop users
-can drag the bowl or use arrow keys. The view switcher shows the center, left,
-and right views; browser views use their own sensors and do not synchronize
-with the exhibition's native iPads. Native BLE, kiosk power controls, native
+can drag the bowl or use arrow keys. The center view owns the real fluid simulation and measured mixing result.
+The left/right views are visual previews: local sensors animate their pose,
+while the Mix/Still demo controls show the full story without fabricating a
+measured mixture from motion. They do not synchronize with the exhibition's
+native iPads or with separate web devices. Native BLE, kiosk power controls, native
 updates and the Mac operator panel are not included. No offline service worker
 is installed; loading the site requires an internet connection.
 

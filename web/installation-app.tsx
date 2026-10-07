@@ -54,6 +54,7 @@ function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
     <CalibrationPanel display={role} sync={sync} {...settings}>
       <section className="scenario-controls" aria-label="Pohyb a scénář">
         <output className="scenario-source">Zdroj dat: {source}</output>
+        <p>Boční náhled. Celý průběh spustíš ukázkou; gyroskop zde ovládá pohyb, neměří zamíchání.</p>
         {motion.sensorError && motion.input.source === 'none' && <p>{motion.sensorError}</p>}
         {!isNativeHost() && <button onClick={motion.enableBrowserMotion}>Povolit gyroskop</button>}
         {role === 'left' && <label>Kolonie ADD · směr změn
@@ -67,10 +68,10 @@ function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
             <option value="">Automaticky podle pohybu</option>
             {(Object.entries(SCREENS) as [ScenarioStage, typeof SCREENS[ScenarioStage]][]).map(([stage, screen]) => <option key={stage} value={stage}>{screen.title}</option>)}
           </select></label>
-          <div className="scenario-demo-buttons"><button onClick={() => motion.start('mix')}>Ukázka: mícháš</button><button onClick={() => motion.start('still')}>Ukázka: nemícháš</button></div>
-          <button onClick={() => motion.start('live')}>Znovu podle gyroskopu</button>
-          <p>{motion.frozen ? 'Zastavený náhled pro kalibraci.' : SCREENS[motion.scenario.stage].title}</p>
         </>}
+        <div className="scenario-demo-buttons"><button onClick={() => motion.start('mix')}>Ukázka: mícháš</button><button onClick={() => motion.start('still')}>Ukázka: nemícháš</button></div>
+        <button onClick={() => motion.start('live')}>Znovu jen pohyb gyroskopu</button>
+        <p>{motion.frozen ? 'Zastavený náhled pro kalibraci.' : SCREENS[motion.scenario.stage].title}</p>
       </section>
     </CalibrationPanel>
   </main>;
