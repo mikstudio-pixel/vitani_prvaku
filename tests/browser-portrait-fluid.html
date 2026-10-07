@@ -10,7 +10,8 @@
   const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const gl = canvas.getContext('webgl2');
-  const material = () => { const values = new Float32Array(bowl.dye.read.size ** 2 * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, bowl.dye.read.buffer); gl.readPixels(0, 0, bowl.dye.read.size, bowl.dye.read.size, gl.RGBA, gl.FLOAT, values); return values; };
+  const field = target => { const values = new Float32Array(target.size ** 2 * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, target.buffer); gl.readPixels(0, 0, target.size, target.size, gl.RGBA, gl.FLOAT, values); return values; };
+  const material = () => field(bowl.dye.read);
   const difference = (a, b) => { let sum = 0; for (let i = 0; i < a.length; i += 4) sum += Math.abs(a[i] - b[i]); return sum / (a.length / 4); };
   try {
     const before = material();
@@ -28,9 +29,15 @@
     bowl.updatePortrait(image, 160);
     assert(bowl.portraitPattern.size === 160, 'Fine setting must use a real 160-square guide');
     assert(difference(before, material()) === 0, 'Changing controls must preserve the saved fluid field');
+    bowl.updatePortrait(image, 32);
     for (let i = 0; i < 100; i++) bowl.stepMaterial(1 / 30);
     assert(bowl.portraitPhase === 'holding', 'Portrait must emerge gradually');
     assert(difference(before, material()) > .05, 'The guide must rearrange the actual material');
+    const pixelGuide = field(bowl.phaseForward);
+    bowl.setPortraitPixelated(false); bowl.stepMaterial(1/30);
+    assert(difference(pixelGuide, field(bowl.phaseForward)) > .02, 'Turning pixelation off must smooth the material guide');
+    bowl.setPortraitPixelated(true); bowl.stepMaterial(1/30);
+    assert(difference(pixelGuide, field(bowl.phaseForward)) < .00001, 'Turning pixelation on must restore the original square guide');
     bowl.render();
     output.textContent = 'Pixelated portrait gathered from the liquid. Waiting before dissolve…';
     const holdAt = performance.now(); while (performance.now() - holdAt < 4000) await frame();
@@ -40,7 +47,7 @@
     bowl.setPaused(false); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512)); bowl.reset();
     assert(!bowl.portraitActive, 'Reset must discard the portrait');
     assert(gl.getError() === gl.NO_ERROR, 'GPU mask and gathering must be error free');
-    output.textContent = 'PASS: stretch on/off, 16–160 grid, saved fluid unchanged, guided reveal, dissolve, repeat readiness, reset';
+    output.textContent = 'PASS: pixelation on/off changes the liquid guide, stretch on/off, 16–160 grid, saved fluid unchanged, guided reveal, dissolve, repeat readiness, reset';
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
   finally { bowl.dispose(); }
 </script></body></html>

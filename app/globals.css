@@ -68,6 +68,7 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .portrait-switch[aria-checked="true"] .switch-track::after { transform: translateX(12px); background: white; }
 
 .portrait-preview canvas[aria-label="Do kapaliny"], .portrait-preview canvas[aria-label="Roztažený portrét"] { image-rendering: pixelated; }
+.portrait-preview.is-smooth canvas[aria-label="Do kapaliny"], .portrait-preview.is-smooth canvas[aria-label="Roztažený portrét"] { image-rendering: auto; }
 .portrait-resolution { pointer-events: auto; display: block; width: 100%; margin-top: 2px; }
 .portrait-resolution > span { display: flex; justify-content: space-between; }
 .portrait-resolution output { width: auto; }

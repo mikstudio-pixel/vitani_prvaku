@@ -501,6 +501,7 @@ export class FluidBowl {
   private portraitPattern: Target;
   private portraitOriginal: Target;
   private portraitElapsed = -1;
+  private portraitPixelated = true;
   private qrPattern: Target;
   private qrElapsed = -1;
   private qrReleasing = false;
@@ -996,7 +997,7 @@ export class FluidBowl {
   }
   private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false, backgroundExtent = BOB_BACKGROUND_EXTENT) {
     this.prepareMaterialNoise();
-    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait, backgroundExtent });
+    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait, smoothPortrait: this.portraitActive && !this.portraitPixelated, backgroundExtent });
     const steps = Math.ceil(dt * 240);
     for (let i = 0; i < steps; i++) {
       this.draw('qrChemical', this.phaseChemical, { phase: this.dye.read, guide: this.phaseForward, progress });
@@ -1122,6 +1123,11 @@ export class FluidBowl {
     this.draw('patternRestore', this.portraitOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });
     this.uploadPortrait(image, resolution);
     this.portraitElapsed = 0;
+  }
+  setPortraitPixelated(enabled: boolean) {
+    if (this.disposed || this.portraitPixelated === enabled) return;
+    this.portraitPixelated = enabled;
+    if (this.portraitPhase === 'holding') this.portraitElapsed = BOB_TIMING.reveal;
   }
   updatePortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
     if (this.disposed || !this.portraitActive) return;

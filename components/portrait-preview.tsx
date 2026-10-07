@@ -11,8 +11,8 @@ function Frame({ image, label }: { image: ImageData | null; label: string }) {
   }, [image]);
   return <figure><canvas ref={ref} aria-label={label} /><figcaption>{label}</figcaption></figure>;
 }
-export function PortraitPreview({ captured, isolated, status, stretch, onStretch, resolution, onResolution }: {
-  captured: ImageData | null; isolated: ImageData | null; status: string; stretch: boolean; onStretch: (enabled: boolean) => void; resolution: number; onResolution: (size: number) => void;
+export function PortraitPreview({ captured, isolated, status, stretch, onStretch, pixelated, onPixelation, resolution, onResolution }: {
+  captured: ImageData | null; isolated: ImageData | null; status: string; stretch: boolean; onStretch: (enabled: boolean) => void; pixelated: boolean; onPixelation: (enabled: boolean) => void; resolution: number; onResolution: (size: number) => void;
 }) {
   const preview = useMemo(() => {
     if (!isolated) return null;
@@ -23,14 +23,17 @@ export function PortraitPreview({ captured, isolated, status, stretch, onStretch
     }
     return new ImageData(data, resolution, resolution);
   }, [isolated, resolution]);
-  return <aside className={`portrait-preview${captured ? '' : ' is-empty'}`} aria-label="Náhled a efekt fotografie">
+  return <aside className={`portrait-preview${captured ? '' : ' is-empty'}${pixelated ? '' : ' is-smooth'}`} aria-label="Náhled a efekt fotografie">
     {captured && <><Frame image={captured} label="Vyfoceno" /><Frame image={preview} label={stretch ? 'Roztažený portrét' : 'Do kapaliny'} /></>}
     {status && <output>{status}</output>}
     <button type="button" role="switch" aria-checked={stretch} className="portrait-switch" onClick={() => onStretch(!stretch)}>
       Roztažení <span aria-hidden="true" className="switch-track" />
     </button>
+    <button type="button" role="switch" aria-checked={pixelated} className="portrait-switch" onClick={() => onPixelation(!pixelated)}>
+      Pixelace <span aria-hidden="true" className="switch-track" />
+    </button>
     <label className="portrait-resolution">
-      <span>Čtverečky <output>{resolution} × {resolution}</output></span>
+      <span>{pixelated ? 'Čtverečky' : 'Detail křivek'} <output>{resolution} × {resolution}</output></span>
       <input type="range" min="16" max="160" step="8" value={resolution} aria-label="Rozlišení fotografie" onChange={event => onResolution(Number(event.target.value))} />
       <span className="resolution-ends"><span>Méně</span><span>Více</span></span>
     </label>

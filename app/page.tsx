@@ -27,6 +27,8 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const [resolution, setResolution] = useState(PORTRAIT_SIZE);
   const stretchEnabled = useRef(false);
   const [stretch, setStretch] = useState(false);
+  const pixelationEnabled = useRef(true);
+  const [pixelated, setPixelated] = useState(true);
   const processor = useRef<PortraitProcessor | null>(null);
   const [captured, setCaptured] = useState<ImageData | null>(null);
   const [isolated, setIsolated] = useState<ImageData | null>(null);
@@ -78,6 +80,10 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     if (pending.current?.image) pending.current.image = image;
     else engine.current?.updatePortrait(image, portraitResolution.current);
   };
+  const changePixelation = (enabled: boolean) => {
+    pixelationEnabled.current = enabled; setPixelated(enabled);
+    engine.current?.setPortraitPixelated(enabled);
+  };
   const changeResolution = (size: number) => {
     portraitResolution.current = size; setResolution(size);
     if (isolated) engine.current?.updatePortrait(isolated, size);
@@ -122,6 +128,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         stirring: params.get('stir') !== '0', dissolving: params.get('dissolve') !== '0',
         organicSeparation: params.get('organic') !== '0', ambientFlow: params.get('drift') !== '0' });
       engine.current = bowl;
+      bowl.setPortraitPixelated(pixelationEnabled.current);
       bowl.setTilt(liveTilt.current);
       setError(''); setReady(true); visibility();
     } catch (cause) {
@@ -182,7 +189,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     <output className="app-version" title={APP_VERSION} aria-label={`Verze aplikace ${APP_VERSION}`}>
       v {APP_VERSION === 'development' ? 'vývoj' : APP_VERSION.slice(0, 7)}
     </output>
-    <PortraitPreview captured={captured} isolated={isolated} status={portraitStatus} stretch={stretch} onStretch={changeStretch} resolution={resolution} onResolution={changeResolution} />
+    <PortraitPreview captured={captured} isolated={isolated} status={portraitStatus} stretch={stretch} onStretch={changeStretch} pixelated={pixelated} onPixelation={changePixelation} resolution={resolution} onResolution={changeResolution} />
     <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
     <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."

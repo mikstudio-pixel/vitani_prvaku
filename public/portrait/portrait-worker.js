@@ -33,8 +33,8 @@ async function isolate(frame) {
   const box = detections.map(d => d.boundingBox).filter(Boolean)
     .sort((a, b) => b.width * b.height - a.width * a.height)[0];
   if (!box) throw new Error('Obličej nenalezen. Přibližte se a zkuste to znovu.');
-  // A tight head crop retains forehead and chin, instead of shrinking a whole scene.
-  const side = Math.max(box.width * 1.35, box.height * 1.45);
+  // Keep forehead and chin with more breathing room inside the circular bowl.
+  const side = Math.max(box.width * 1.35, box.height * 1.45) / .8;
   const left = box.originX + box.width / 2 - side / 2;
   const top = box.originY + box.height * .42 - side / 2;
   const cropped = canvas(512, 512);
