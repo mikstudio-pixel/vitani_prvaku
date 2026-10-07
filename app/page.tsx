@@ -16,7 +16,6 @@ import { storyWakeFrame, WakeIntro } from '@/lib/wake-intro';
 import { TiltRing } from '@/components/tilt-ring';
 import { MixingIndicatorDot, MixingPrompt } from '@/components/mixing-indicator';
 import { MixingIndicator, INDICATOR_READY } from '@/lib/mixing-indicator';
-import type { NativeMotion } from '@/lib/native-host';
 import { lightFromTilt } from '@/lib/tilt-light';
 import { bindMixingSensitivity } from '@/lib/mixing-settings';
 import { bindQrAnimation } from '@/lib/qr-settings';
@@ -92,16 +91,6 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     const box = bowlRef.current?.getBoundingClientRect();
     if (box) updateTilt({ x: ((clientX - box.left) / box.width - 0.5) * 2.25, y: ((clientY - box.top) / box.height - 0.5) * 2.25 });
   };
-
-  useEffect(() => {
-    const receive = (event: Event) => {
-      if (document.hidden || isNativePaused()) return;
-      const sample = (event as CustomEvent<NativeMotion>).detail;
-      if (sample && Number.isFinite(sample.activity)) nativeActivity.current = { value: Math.min(1, Math.max(0, sample.activity!)), quiet: sample.quiet, at: performance.now() };
-    };
-    window.addEventListener('michas:motion', receive);
-    return () => window.removeEventListener('michas:motion', receive);
-  }, []);
 
   useEffect(() => {
     const device = new DeviceTilt(updateTilt, setSensor);

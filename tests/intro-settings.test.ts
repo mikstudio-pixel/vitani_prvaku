@@ -95,7 +95,7 @@ void test('zero confirmation delays cannot manufacture lift, motion or success',
   for (let t = 0; t < 5; t += .1) assert.notEqual(machine.step(t, sample).stage, 'success');
 });
 
-void test('intro settings restore, persist and acknowledge all roles; invalid events do not apply', () => {
+void test('intro settings restore, persist and stay browser-local all roles; invalid events do not apply', () => {
   const store = new Map<string, string>(), reports: unknown[] = [];
   const win = Object.assign(new EventTarget(), { localStorage: {
     getItem: (key: string) => store.get(key) ?? null,
@@ -108,7 +108,7 @@ void test('intro settings restore, persist and acknowledge all roles; invalid ev
   assert.equal(send(value), false);
   assert.equal(SCENARIO.detected, 4.2);
   assert.equal(INTRO.panels.color.duration, .8);
-  assert.deepEqual(reports.at(-1), { command: 'intro-settings-report', value, saved: true });
+  assert.deepEqual(reports, []);
   assert.equal(store.get(INTRO_SETTINGS_KEY), JSON.stringify(value));
   assert.equal(send({ ...value, 'story.detected': -1 }), true);
   assert.equal(SCENARIO.detected, 4.2);

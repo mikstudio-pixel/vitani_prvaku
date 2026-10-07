@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isNativeHost, isNativePaused, nativeCommand, reportSimulationReady, type GyroAngles, type NativeMotion, type TraySync, type StoryClock } from '@/lib/native-host';
+import { isNativeHost, isNativePaused, nativeCommand, reportSimulationReady, type GyroAngles, type TraySync, type StoryClock } from '@/lib/native-host';
 import { MixingScenario, selectMotion, scenarioPreview, type MotionInput, type MotionSample, type ScenarioStage } from '@/lib/mixing-scenario';
 import { browserGyro } from '@/lib/gyroscope-pose';
 import { countdownFrame } from '@/lib/intro-parameters';
@@ -34,13 +34,6 @@ export function useSideScenario(sync: TraySync) {
   }, [sync]);
 
   useEffect(() => {
-    const nativeMotion = (event: Event) => {
-      if (document.hidden || isNativePaused()) return;
-      const sample = (event as CustomEvent<NativeMotion>).detail;
-      if (sample.gyro && Object.values(sample.gyro).every(Number.isFinite) && Number.isFinite(sample.activity)) {
-        local.current = { gyro: sample.gyro, activity: Math.max(0, Math.min(1, sample.activity!)), receivedAt: time() };
-      }
-    };
     const orientation = (event: DeviceOrientationEvent) => {
       if (isNativeHost() || event.beta === null || event.gamma === null || event.alpha === null) return;
       const gyro: GyroAngles = browserGyro(event.alpha, event.beta, event.gamma);
@@ -50,7 +43,6 @@ export function useSideScenario(sync: TraySync) {
       const speed = previous?.gyro && dt > 0 && dt < 0.5 ? Math.hypot(...(['x', 'y', 'z'] as const).map(axis => angleDifference(gyro[axis], previous.gyro![axis]))) / dt : 0;
       local.current = { gyro, activity: Math.min(1, speed / 45), receivedAt: now };
     };
-    const error = () => { local.current = null; setSensorError('Gyroskop není dostupný.'); };
     const resetAfterPause = () => {
       local.current = null;
       if (document.hidden || isNativePaused()) {
@@ -58,8 +50,6 @@ export function useSideScenario(sync: TraySync) {
         speed.current = new MotionSpeed();
       }
     };
-    window.addEventListener('michas:motion', nativeMotion);
-    window.addEventListener('michas:motion-error', error);
     window.addEventListener('deviceorientation', orientation);
     window.addEventListener('michas:power', resetAfterPause);
     document.addEventListener('visibilitychange', resetAfterPause);
@@ -102,8 +92,6 @@ export function useSideScenario(sync: TraySync) {
       clearInterval(timer);
       reportSimulationReady(false);
       nativeCommand('tilt', false);
-      window.removeEventListener('michas:motion', nativeMotion);
-      window.removeEventListener('michas:motion-error', error);
       window.removeEventListener('deviceorientation', orientation);
       window.removeEventListener('michas:power', resetAfterPause);
       document.removeEventListener('visibilitychange', resetAfterPause);

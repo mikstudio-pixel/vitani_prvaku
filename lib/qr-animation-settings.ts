@@ -1,7 +1,7 @@
 import { QR_REVEAL_SECONDS } from './qr-pattern';
 
 export type QrAnimationSettings = { revealSeconds: number; disperseSpeed: number };
-export const QR_ANIMATION_LIMITS = { revealMin: 5, revealMax: 30, disperseMin: 0.25, disperseMax: 3 } as const;
+export const QR_ANIMATION_LIMITS = { revealMin: 5, revealMax: 20, disperseMin: 0.25, disperseMax: 3 } as const;
 export const DEFAULT_QR_ANIMATION: QrAnimationSettings = { revealSeconds: QR_REVEAL_SECONDS, disperseSpeed: 1 };
 
 export function validQrAnimation(value: unknown): value is QrAnimationSettings {

@@ -30,6 +30,8 @@ original `.openai` hosting identity were excluded. Shared graphics live in
 All persistent browser settings use `vitani-prvaku.*`, including sensor
 calibration and legacy settings migrations. Opening this event on the same
 Pages hostname does not intentionally read or write `michas.*` settings.
+The native bridge is hard-disabled: injected native globals are ignored and
+no commands or acknowledgements are sent to a Designblok WKWebView.
 Neither building nor deploying this repository sends updates to native iPads.
 
 `tests.yml` is manual so remote CI can run once after reviews are complete.
@@ -38,6 +40,8 @@ To roll back, revert the release change in this repository and redeploy.
 Never select this folder as an update package in the exhibition's Mac panel.
 
 The initial copy preserves the existing artwork, fonts, sound assets and QR
-link. Event-specific content has not yet been changed. Asset provenance remains
+link. Event-specific content has not yet been changed. The combined final message
+and twenty-second restart are preserved; QR reveal settings are limited to
+5–20 seconds so they fit the final countdown. Asset provenance remains
 in `web/sounds/README.md` and the font license files in `public/fonts/`; verify
 that the event's licenses cover public web use before advertising the site.

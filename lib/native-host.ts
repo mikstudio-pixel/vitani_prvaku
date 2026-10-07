@@ -45,89 +45,20 @@ export type TraySync = {
   displays?: Partial<Record<DisplayRole, RemoteCalibration>>;
   calibrationCommand?: { request: number; value: DisplayCalibration } | null;
 };
-type NativeMessage = { command: 'ready' | 'presentation-ready' | 'tilt' | 'sleep-transition' | 'wake-transition'; enabled?: boolean } | { command: 'tray-state'; state: TrayTelemetry } | { command: 'benchmark-result'; result: unknown }
-  | { command: 'calibration-report'; role: CalibrationRole; value: DisplayCalibration; request: number; saved: boolean }
-  | { command: 'calibration-set'; role: DisplayRole; value: DisplayCalibration; edit: number }
-  | { command: 'mixing-settings-report'; sensitivity: number; saved: boolean }
-  | { command: 'frame-rate-report'; fps: FrameRate; saved: boolean }
-  | { command: 'qr-settings-report'; value: QrAnimationSettings; saved: boolean }
-  | { command: 'colony-settings-report'; direction: ColonyDirection; saved: boolean }
-  | { command: 'intro-settings-report'; value: IntroSettings; saved: boolean }
-  | { command: 'sound-settings-report'; value: SoundSettings; saved: boolean }
-  | { command: 'audio-report'; state: string; decoded: number; played: number }
-  | { command: 'simulation-ready'; enabled: boolean }
-  | { command: 'simulation-complete' }
-  | { command: 'session-complete' };
-
-declare global {
-  interface Window {
-    __michasNative?: { paused: boolean; presentation?: boolean; sync?: TraySync; benchmark?: boolean; fps?: number };
-    webkit?: { messageHandlers?: { michas?: { postMessage: (message: NativeMessage) => void } } };
-  }
-}
-
-export const isNativeHost = () => typeof window !== 'undefined' && !!window.__michasNative;
-export function reportSimulationReady(enabled: boolean) {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'simulation-ready', enabled });
-}
-export function completeSession() {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'session-complete' });
-}
-export function completeSimulation() {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'simulation-complete' });
-}
-export function reportIntroSettings(value: IntroSettings, saved: boolean) {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'intro-settings-report', value, saved });
-}
-export function reportSoundSettings(value: SoundSettings, saved: boolean) {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'sound-settings-report', value, saved });
-}
-export function reportAudio(state: string, decoded: number, played: number) {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command: 'audio-report', state, decoded, played });
-}
-export const isNativePaused = () => window.__michasNative?.paused === true;
-export function nativeCommand(command: 'ready' | 'presentation-ready' | 'tilt' | 'sleep-transition' | 'wake-transition', enabled?: boolean) {
-  window.webkit?.messageHandlers?.michas?.postMessage({ command, enabled });
-}
-export function publishTrayState(state: TrayTelemetry) {
-  if (window.__michasNative?.sync?.role === 'host' || window.__michasNative?.sync?.role === 'standalone') {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'tray-state', state });
-  }
-}
-
-export function reportMixingSensitivity(sensitivity: number, saved: boolean) {
-  const role = window.__michasNative?.sync?.role;
-  if (role === 'host' || role === 'standalone') {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'mixing-settings-report', sensitivity, saved });
-  }
-}
-
-export function reportFrameRate(fps: FrameRate, saved: boolean) {
-  const role = window.__michasNative?.sync?.role;
-  if (role === 'host' || role === 'standalone') {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'frame-rate-report', fps, saved });
-  }
-}
-
-export function reportQrAnimation(value: QrAnimationSettings, saved: boolean) {
-  const role = window.__michasNative?.sync?.role;
-  if (role === 'host' || role === 'standalone') {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'qr-settings-report', value, saved });
-  }
-}
-
-export function reportCalibration(role: CalibrationRole, value: DisplayCalibration, saved: boolean, request = 0) {
-  const local = window.__michasNative?.sync?.role;
-  if (local === role || ((role === 'center' || role === 'indicator') && (local === 'host' || local === 'standalone'))) {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'calibration-report', role, value, saved, request });
-  }
-}
-
-let calibrationEdit = Date.now();
-export function setRemoteCalibration(role: DisplayRole, value: DisplayCalibration) {
-  const edit = ++calibrationEdit;
-  if (window.__michasNative?.sync?.role === 'host') {
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'calibration-set', role, value, edit });
-  }
-  return edit;
-}
+// Shared simulation interfaces remain available, but this event never reads
+// an injected Designblok host or sends messages to its native handlers.
+export const isNativeHost = (): boolean => false;
+export const isNativePaused = (): boolean => false;
+export function reportSimulationReady(_enabled: boolean) {}
+export function completeSession() {}
+export function completeSimulation() {}
+export function reportIntroSettings(_value: IntroSettings, _saved: boolean) {}
+export function reportSoundSettings(_value: SoundSettings, _saved: boolean) {}
+export function reportAudio(_state: string, _decoded: number, _played: number) {}
+export function nativeCommand(_command: 'ready' | 'presentation-ready' | 'tilt' | 'sleep-transition' | 'wake-transition', _enabled?: boolean) {}
+export function publishTrayState(_state: TrayTelemetry) {}
+export function reportMixingSensitivity(_sensitivity: number, _saved: boolean) {}
+export function reportFrameRate(_fps: FrameRate, _saved: boolean) {}
+export function reportQrAnimation(_value: QrAnimationSettings, _saved: boolean) {}
+export function reportCalibration(_role: CalibrationRole, _value: DisplayCalibration, _saved: boolean, _request = 0) {}
+export function setRemoteCalibration(_role: DisplayRole, _value: DisplayCalibration) { return 0; }

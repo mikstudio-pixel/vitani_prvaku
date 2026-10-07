@@ -63,42 +63,24 @@ function environment(permission: () => Promise<'granted' | 'denied'> = async () 
   return { win, doc, timers, tilts, states, storage, controller, reading };
 }
 
-void test('native sensors use screen angle, preserve calibration through sleep, and stop delivery', async () => {
-  const e = environment(() => { throw new Error('Native mode must not ask Safari for permission'); });
-  const host = { paused: false };
+void test('an injected Designblok host cannot bypass browser permissions or deliver motion', async () => {
+  let requested = false;
+  const e = environment(async () => { requested = true; return 'granted'; });
   const commands: unknown[] = [];
-  Object.assign(e.win, { __michasNative: host, isSecureContext: false,
-    webkit: { messageHandlers: { michas: { postMessage: (message: unknown) => commands.push(message) } } } });
-  const reading = (x: number, y: number, angle = 90) =>
-    e.win.dispatchEvent(Object.assign(new Event('michas:motion'), { detail: { x, y, angle } }));
+  Object.assign(e.win, {
+    __michasNative: { paused: true, sync: { role: 'host' } },
+    webkit: { messageHandlers: { michas: { postMessage: (value: unknown) => commands.push(value) } } },
+  });
   await e.controller.start();
-  assert.deepEqual(commands.at(-1), { command: 'tilt', enabled: true });
-  reading(NaN, 0);
+  assert.equal(requested, true);
   assert.equal(e.states.at(-1)?.phase, 'waiting');
-  reading(0, 0); reading(0, -Math.sin(Math.PI / 10));
-  close(e.tilts.at(-1)!, { x: 1, y: 0 });
-  host.paused = true; e.win.dispatchEvent(new Event('michas:power'));
-  assert.equal(e.timers.size, 0);
-  assert.equal(e.states.at(-1)?.phase, 'paused');
+  e.win.dispatchEvent(Object.assign(new Event('michas:motion'), { detail: { x: .5, y: .5, angle: 0 } }));
+  assert.equal(e.states.at(-1)?.phase, 'waiting');
   close(e.tilts.at(-1)!, flat);
-  reading(0.1, 0.1); close(e.tilts.at(-1)!, flat);
-  host.paused = false; e.win.dispatchEvent(new Event('michas:power'));
-  assert.equal(e.states.at(-1)?.phase, 'waiting');
-  reading(0, -Math.sin(Math.PI / 10)); close(e.tilts.at(-1)!, { x: 1, y: 0 });
-  e.controller.stop();
-  assert.deepEqual(commands.at(-1), { command: 'tilt', enabled: false });
-  const count = e.tilts.length;
-  reading(0, 0); e.win.dispatchEvent(new Event('michas:power'));
-  assert.equal(e.tilts.length, count);
-});
-
-void test('native motion failure leaves manual input available and clears waiting timer', async () => {
-  const e = environment();
-  Object.assign(e.win, { __michasNative: { paused: false } });
-  await e.controller.start();
-  e.win.dispatchEvent(new Event('michas:motion-error'));
-  assert.equal(e.states.at(-1)?.phase, 'error');
-  assert.equal(e.timers.size, 0);
+  e.reading(0, 18);
+  close(e.tilts.at(-1)!, { x: 1, y: 0 });
+  e.controller.dispose();
+  assert.deepEqual(commands, []);
 });
 
 void test('browser starts tilted relative to horizontal and restores horizontal after sensor restart', async () => {
@@ -116,37 +98,6 @@ void test('browser starts tilted relative to horizontal and restores horizontal 
   e.reading(0, 0);
   close(e.tilts.at(-1)!, flat);
   e.controller.dispose();
-});
-
-void test('native first wake uses horizontal in every screen rotation and preserves it across sleep', async () => {
-  for (const angle of [0, 90, 180, 270]) {
-    const e = environment();
-    const host = { paused: true };
-    Object.assign(e.win, { __michasNative: host });
-    const gravity = { x: 0.12, y: -0.18 };
-    const reading = () => e.win.dispatchEvent(Object.assign(new Event('michas:motion'), {
-      detail: { ...gravity, angle },
-    }));
-    await e.controller.start();
-    reading();
-    close(e.tilts.at(-1)!, flat);
-    host.paused = false; e.win.dispatchEvent(new Event('michas:power'));
-    reading();
-    const expected = screenTilt(gravity, flat, angle);
-    assert.ok(Math.hypot(expected.x, expected.y) > 0.5);
-    close(e.tilts.at(-1)!, expected);
-    close(e.controller.getDiagnostics()!.neutral, flat);
-    host.paused = true; e.win.dispatchEvent(new Event('michas:power'));
-    host.paused = false; e.win.dispatchEvent(new Event('michas:power'));
-    reading();
-    close(e.tilts.at(-1)!, expected);
-    e.controller.calibrate();
-    host.paused = true; e.win.dispatchEvent(new Event('michas:power'));
-    host.paused = false; e.win.dispatchEvent(new Event('michas:power'));
-    reading();
-    close(e.tilts.at(-1)!, flat);
-    e.controller.dispose();
-  }
 });
 
 void test('permission is requested synchronously and active status requires valid sensor data', async () => {

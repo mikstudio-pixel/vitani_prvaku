@@ -27,11 +27,11 @@ void test('FPS limits preserve stability bounds and adaptive quality respects in
   assert.equal(slowFrameRate(24, 30), true); assert.equal(slowFrameRate(49, 60), true);
   assert.equal(slowFrameRate(40, 40), false); assert.equal(slowFrameRate(32, 40), true);
 });
-void test('FPS changes apply, persist and acknowledge without waking; dispose removes the listener', () => {
+void test('FPS changes apply, persist and stay browser-local without waking; dispose removes the listener', () => {
   const e = environment(); const stop = e.bind();
   assert.deepEqual(e.applied, [60]);
   e.receive(30);
-  assert.deepEqual(e.reports.at(-1), { command: 'frame-rate-report', fps: 30, saved: true });
+  assert.deepEqual(e.reports, []);
   assert.equal(e.storage.get(FRAME_RATE_KEY), '30');
   assert.equal(e.win.__michasNative.paused, true);
   for (const value of ['30', null, 20, 0, NaN, 120]) e.receive(value);
@@ -44,7 +44,7 @@ void test('FPS settings recover corrupt storage and report temporary changes whe
   assert.equal(e.applied[0], 60);
   Object.defineProperty(e.win, 'localStorage', { get() { throw new Error('Blocked'); } });
   e.receive(30);
-  assert.deepEqual(e.reports.at(-1), { command: 'frame-rate-report', fps: 30, saved: false }); stop();
+  assert.deepEqual(e.reports, []); stop();
 });
 void test('side displays do not advertise control of the central frame rate', () => {
   const e = environment(new Map(), 'right'); const stop = e.bind();

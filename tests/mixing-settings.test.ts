@@ -31,15 +31,15 @@ void test('mixing sensitivity validates finite numeric limits and uses BLE preci
   assert.equal(normalizeMixingSensitivity(NaN), 1);
 });
 
-void test('settings apply, persist, acknowledge and restore without waking or periodic work', () => {
+void test('settings apply, persist, stay browser-local and restore without waking or periodic work', () => {
   const e = environment();
   const dispose = e.bind();
   assert.deepEqual(e.applied, [1]);
-  assert.deepEqual(e.reports.at(-1), { command: 'mixing-settings-report', sensitivity: 1, saved: true });
+  assert.deepEqual(e.reports, []);
   e.receive(1.75);
   assert.equal(e.applied.at(-1), 1.75);
   assert.equal(e.storage.get(MIXING_SENSITIVITY_KEY), '1.75');
-  assert.deepEqual(e.reports.at(-1), { command: 'mixing-settings-report', sensitivity: 1.75, saved: true });
+  assert.deepEqual(e.reports, []);
   assert.equal(e.win.__michasNative.paused, true);
   for (const value of [undefined, null, '2', {}, 0, 6, NaN]) e.receive(value);
   assert.equal(e.applied.length, 2);
@@ -58,13 +58,13 @@ void test('corrupt or old settings restore the original sensitivity', () => {
   }
 });
 
-void test('blocked storage applies temporarily and reports failure honestly', () => {
+void test('blocked storage applies temporarily and keeps temporary changes browser-local', () => {
   const e = environment();
   Object.defineProperty(e.win, 'localStorage', { get() { throw new Error('Blocked'); } });
   const stop = e.bind();
   e.receive(5);
   assert.deepEqual(e.applied, [1, 5]);
-  assert.deepEqual(e.reports.at(-1), { command: 'mixing-settings-report', sensitivity: 5, saved: false });
+  assert.deepEqual(e.reports, []);
   stop();
 });
 

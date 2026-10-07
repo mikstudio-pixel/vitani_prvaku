@@ -13,7 +13,6 @@ export function useColonyDirection(enabled = true) {
     let stored = false;
     try { localStorage.setItem(key, value); stored = localStorage.getItem(key) === value; } catch { /* Keep the live setting. */ }
     setSaved(stored);
-    window.webkit?.messageHandlers?.michas?.postMessage({ command: 'colony-settings-report', direction: value, saved: stored });
   }, []);
   useEffect(() => {
     if (!enabled) return;

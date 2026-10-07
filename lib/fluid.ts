@@ -998,7 +998,6 @@ export class FluidBowl {
     const seconds = (time - this.statsStart) / 1000;
     if (seconds < 1) return;
     const fps = this.statsFrames / seconds;
-    if (window.__michasNative) window.__michasNative.fps = Math.round(fps);
     this.slowSamples = slowFrameRate(fps, this.targetFrameRate) ? this.slowSamples + 1 : 0;
     if (this.quality === 'performance' && this.slowSamples >= 3 && this.renderLimit > 600) {
       // Reduce shading pixels only. Never change grid/state mid-portion or

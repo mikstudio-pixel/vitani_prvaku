@@ -8,7 +8,7 @@ import './display-calibration.css';
 
 type CalibrationUpdate = (value: DisplayCalibration | ((current: DisplayCalibration) => DisplayCalibration)) => void;
 
-const syncSnapshot = () => window.__michasNative?.sync;
+const syncSnapshot = (): TraySync | undefined => undefined;
 const subscribeSync = (callback: () => void) => {
   window.addEventListener('michas:sync', callback);
   return () => window.removeEventListener('michas:sync', callback);
@@ -36,7 +36,7 @@ export function useDisplayCalibration(role: CalibrationRole) {
     apply(readCalibration(role, stored));
     let received = 0;
     const receive = () => {
-      const sync = window.__michasNative?.sync;
+      const sync = syncSnapshot();
       const command = sync?.calibrationCommand;
       if (sync?.role !== role || !command || command.request === received) return;
       received = command.request;

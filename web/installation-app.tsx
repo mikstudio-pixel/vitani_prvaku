@@ -1,8 +1,8 @@
 /* oxlint-disable next/no-img-element -- Offline WKWebView has no Next image server. */
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
 import Home from '@/app/page';
 import { DisplaySwitcher } from '@/components/display-switcher';
-import { isNativeHost, nativeCommand, type TraySync } from '@/lib/native-host';
+import { isNativeHost, type TraySync } from '@/lib/native-host';
 import type { DisplayRole } from '@/lib/display-calibration';
 import type { ScenarioStage } from '@/lib/mixing-scenario';
 import { CalibrationPanel, useDisplayCalibration } from '@/components/display-calibration';
@@ -20,11 +20,6 @@ const fallback: TraySync = { role: 'standalone', code: '', message: '', peers: 0
 const previewRole = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('display');
 const browserPreview: TraySync = previewRole === 'left' || previewRole === 'right'
   ? { ...fallback, role: previewRole, preview: true } : fallback;
-const snapshot = () => window.__michasNative?.sync ?? browserPreview;
-const subscribe = (callback: () => void) => {
-  window.addEventListener('michas:sync', callback);
-  return () => window.removeEventListener('michas:sync', callback);
-};
 
 function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
   useEffect(() => bindIntroSettings(), []);
@@ -42,7 +37,7 @@ function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
       activity: motion.input.sample?.activity ?? 0, progress: visualMixingProgress(motion.scenario.progress),
       available: !motion.frozen && !!motion.input.sample && motion.intro.stage !== 'waiting'
         && motion.intro.stage !== 'orbit' && motion.scenario.stage !== 'detected'
-        && !document.hidden && !window.__michasNative?.paused });
+        && !document.hidden });
   }, [motion]);
   const colony = useColonyDirection(role === 'left');
   const { x, y, scale } = settings.calibration;
@@ -82,9 +77,8 @@ function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
 }
 
 export function InstallationApp() {
-  const sync = useSyncExternalStore(subscribe, snapshot, () => fallback);
-  useEffect(() => { nativeCommand('ready'); }, []);
-  if (sync.role === 'standalone') return <Home sidePreview />;
-  if (sync.role === 'host') return <>{!sync.preview && <output className="tray-connection" data-operator-ui>{sync.message}</output>}<Home sidePreview /></>;
-  return <SideDisplay key={sync.role} role={sync.role} sync={sync} />;
+  if (browserPreview.role === 'left' || browserPreview.role === 'right') {
+    return <SideDisplay role={browserPreview.role} sync={browserPreview} />;
+  }
+  return <Home sidePreview />;
 }
