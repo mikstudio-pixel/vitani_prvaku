@@ -39,6 +39,7 @@ export function Gallery() {
   const changes = useRef(0);
   const [bounds, setBounds] = useState({ width: 0, height: 0 }), [canDelete, setCanDelete] = useState(false);
   const layout = galleryLayout(rows.length, bounds.width, bounds.height);
+  const topSpace = rows.length ? Math.max(0, (bounds.height - layout.rows * layout.size - (layout.rows - 1) * layout.gap) / 2) : 0;
   const onDeleted = useCallback((id: string) => {
     ++changes.current;
     setRows(previous => previous.filter(row => row.id !== id));
@@ -96,7 +97,7 @@ export function Gallery() {
     return () => { active = false; subscription.data.subscription.unsubscribe(); if (timer) clearInterval(timer); if (channel) void portraitBackend.removeChannel(channel); };
   }, [onDeleted]);
   return <main className="portrait-gallery" data-version={APP_VERSION}>
-    <h1 className="gallery-title">Digitální prváci</h1>
+    <h1 className="gallery-title" style={{ '--gallery-top-space': `${topSpace}px` } as CSSProperties}>Digitální prváci</h1>
     <div ref={grid} className="gallery-grid" style={{ gridTemplateColumns: `repeat(${layout.columns * 2}, ${Math.max(0, (layout.size - layout.gap) / 2)}px)`, gridTemplateRows: `repeat(${layout.rows}, ${layout.size}px)`, gap: layout.gap }}>
       {rows.map((row, index) => <Portrait key={row.id} row={row} canDelete={canDelete} onDeleted={onDeleted} style={{ gridColumn: `${layout.positions[index].column} / span 2`, gridRow: layout.positions[index].row }} />)}
     </div>
