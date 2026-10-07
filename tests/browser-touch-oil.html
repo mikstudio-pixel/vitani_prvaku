@@ -44,6 +44,17 @@ document.getElementById('run').onclick = () => {
     const material = field(bowl.dye.read);
     bowl.render();
     assert(field(bowl.dye.read).every((value, i) => value === material[i]), 'Color rendering must preserve the liquid material');
+    const surface = field(bowl.surface.read);
+    const upload = (target, data) => {
+      gl.bindTexture(gl.TEXTURE_2D, target.texture);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, target.size, target.size, gl.RGBA, gl.FLOAT, data);
+    };
+    const flat = new Float32Array(material.length);
+    for (let i = 0; i < flat.length; i += 4) flat[i] = .5;
+    upload(bowl.dye.read, flat); upload(bowl.surface.read, new Float32Array(surface.length));
+    bowl.render();
+    assert(colorCount(pixels()) === 0, 'Coating must not paint color onto a flat liquid surface');
+    upload(bowl.dye.read, material); upload(bowl.surface.read, surface);
     bowl.setTouchAt(null);
     // Isolate passive advection from the gravity simulation using a known flow.
     const velocity = new Float32Array(bowl.simSize ** 2 * 4);
@@ -71,7 +82,7 @@ document.getElementById('run').onclick = () => {
     bowl.reset();
     assert(maximum(field(bowl.oilFilm.read)) === 0 && colorCount(pixels()) === 0, 'Reset must clear all color');
     assert(gl.getError() === gl.NO_ERROR, 'GPU passes must be error-free');
-    output.textContent = `PASS: ${colored} colored pixels, finite film, fluid transport, unchanged material, monochrome portrait, release fade, reset`;
+    output.textContent = `PASS: ${colored} colored relief pixels, flat areas unchanged, finite film, fluid transport, unchanged material, monochrome portrait, release fade, reset`;
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
 };
 document.getElementById('preview').onclick = () => {

@@ -407,22 +407,26 @@ void main(){
  float softbox=exp(-pow((reflection.x+0.21)/0.18,2.0)-pow((reflection.y-0.42)/0.65,6.0));
  float strip=exp(-pow((reflection.x-reflection.y*0.3-0.48)/0.075,2.0)-pow((reflection.y+0.15)/0.7,4.0));
  float spec=pow(max(dot(reflect(-light,normal),vec3(0,0,1)),0.0),44.0);
- col+=vec3(softbox*0.32+strip*0.18+spec*0.20)*mix(0.45,1.0,dark);
+ vec3 reflectedLight=vec3(1.0);
+ float oilSheen=0.0;
+ if(oilVisible){
+  float film=sampleBowl(oilFilm,uv).r;
+  float relief=smoothstep(0.015,0.18,length(slope*1.35+gradient*0.004));
+  // Interference follows the actual surface orientation, never the touch radius.
+  float optical=dot(reflection.xy,vec2(1.7,2.3))+elevation*8.0+phase*0.12;
+  vec3 rainbow=0.5+0.5*cos(6.2831853*(optical+vec3(0.0,0.33,0.67)));
+  float coating=clamp(film*1.6,0.0,1.0)*relief;
+  reflectedLight=mix(vec3(1.0),rainbow*1.8,coating);
+  oilSheen=coating*0.22;
+ }
+ col+=reflectedLight*((softbox*0.32+strip*0.18+spec*0.20)*mix(0.45,1.0,dark)+oilSheen);
  float meniscus=4.0*phase*(1.0-phase);
  float edgeLight=max(dot(normalize(vec3(-gradient*0.004,1)),light),0.0);
- col+=vec3(meniscus*edgeLight*0.055);
+ col+=reflectedLight*meniscus*edgeLight*0.055;
  float edge=smoothstep(R-0.045,R,r);col*=1.0-0.30*edge;
  float interior=1.0-smoothstep(R-0.045,R,r);
  // Apply color layers before line work and crest light so every selected
  // effect remains visible, independent of the order of checkbox clicks.
- if(oilVisible){
-  float film=sampleBowl(oilFilm,uv).r;
-  // Thin-film bands bend with thickness, material interfaces and surface light.
-  float optical=film*2.8+phase*0.32+dot(normal.xy,vec2(0.7,-0.5));
-  vec3 rainbow=0.5+0.5*cos(6.2831853*(optical+vec3(0.0,0.33,0.67)));
-  vec3 iridescence=rainbow*(0.48+col*0.55)+vec3(softbox*0.16+spec*0.12);
-  col=mix(col,iridescence,clamp(film*1.4,0.0,0.88)*interior);
- }
  if(heightEnabled){
   float level=smoothstep(-0.045,0.045,elevation);
   vec3 low=mix(vec3(0.10,0.24,0.39),vec3(0.38,0.69,0.74),smoothstep(0.0,0.5,level));
