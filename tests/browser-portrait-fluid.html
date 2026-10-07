@@ -1,0 +1,32 @@
+<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Portrait liquid GPU regression</title></head>
+<body style="background:#111;color:#eee"><canvas style="width:420px;height:420px"></canvas><output>Running…</output>
+<script type="module">
+  import { FluidBowl } from '../lib/fluid.ts';
+  import { paintPortrait } from './synthetic-portrait.js';
+  const canvas = document.querySelector('canvas'), output = document.querySelector('output');
+  const source = document.createElement('canvas'); source.width = source.height = 512; paintPortrait(source);
+  const bowl = new FluidBowl(canvas, { quality: 'performance', automaticCrests: true, onTelemetry: () => {}, ambientFlow: true });
+  const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+  const gl = canvas.getContext('webgl2');
+  const material = () => { const values = new Float32Array(bowl.dye.read.size ** 2 * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, bowl.dye.read.buffer); gl.readPixels(0, 0, bowl.dye.read.size, bowl.dye.read.size, gl.RGBA, gl.FLOAT, values); return values; };
+  const difference = (a, b) => { let sum = 0; for (let i = 0; i < a.length; i += 4) sum += Math.abs(a[i] - b[i]); return sum / (a.length / 4); };
+  try {
+    bowl.setPhysicsPaused(true); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512));
+    const before = material();
+    const readyAt = performance.now(); while (performance.now() - readyAt < 1000) await frame();
+    assert((bowl.getTrayState().mixed ?? 1) < .01, 'Fresh portrait must be measured as unmixed');
+    assert(difference(before, material()) === 0, 'Intro must preserve the portrait');
+    // Leave the portrait visible for human inspection before testing transport.
+    output.textContent = 'Portrait uploaded upright. Waiting, then testing liquid transport…';
+    const holdAt = performance.now(); while (performance.now() - holdAt < 4000) await frame();
+    bowl.setPhysicsPaused(false);
+    const start = performance.now(); while (performance.now() - start < 3500) { const now = await frame(); const t = (now - start) / 1000; bowl.setTilt({ x: .7 * Math.cos(t * 4), y: .7 * Math.sin(t * 4) }); }
+    assert(difference(before, material()) > .1, 'Liquid flow must change the portrait material');
+    bowl.setPhysicsPaused(true); bowl.reset();
+    assert(difference(before, material()) > .2, 'Reset must remove the portrait');
+    assert(gl.getError() === gl.NO_ERROR, 'GPU upload and transport must be error free');
+    output.textContent = 'PASS: portrait upload, zero starting progress, frozen intro, real liquid transport, reset';
+  } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
+  finally { bowl.dispose(); }
+</script></body></html>

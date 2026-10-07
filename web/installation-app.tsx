@@ -81,5 +81,5 @@ export function InstallationApp() {
   if (browserPreview.role === 'left' || browserPreview.role === 'right') {
     return <SideDisplay role={browserPreview.role} sync={browserPreview} />;
   }
-  return <Home sidePreview />;
+  return <Home />;
 }
