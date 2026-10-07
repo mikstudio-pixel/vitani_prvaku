@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FluidBowl } from '@/lib/fluid';
+import { PORTRAIT_SIZE } from '@/lib/portrait-material';
+import { stretchPortrait } from '@/lib/portrait-stretch';
 import { PortraitProcessor } from '@/lib/portrait-processor';
 import { PortraitPreview } from '@/components/portrait-preview';
 import { APP_VERSION } from '@/lib/app-version';
@@ -20,6 +22,11 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const engine = useRef<FluidBowl | null>(null);
   const device = useRef<DeviceTilt | null>(null);
   const pending = useRef<{ image: ImageData | null; at: number | null } | null>(null);
+  const basePortrait = useRef<ImageData | null>(null);
+  const portraitResolution = useRef(PORTRAIT_SIZE);
+  const [resolution, setResolution] = useState(PORTRAIT_SIZE);
+  const stretchEnabled = useRef(false);
+  const [stretch, setStretch] = useState(false);
   const processor = useRef<PortraitProcessor | null>(null);
   const [captured, setCaptured] = useState<ImageData | null>(null);
   const [isolated, setIsolated] = useState<ImageData | null>(null);
@@ -42,7 +49,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   }, []);
   const cancelTouch = useCallback(() => { contacts.current.clear(); stopTouch(); }, [stopTouch]);
   const reset = useCallback(() => {
-    cancelHold.current(); cancelTouch(); pending.current = null;
+    cancelHold.current(); cancelTouch(); pending.current = null; basePortrait.current = null;
     setPhase('idle'); setFlash(null); setCaptured(null); setIsolated(null); setPortraitStatus(''); engine.current?.reset();
   }, [cancelTouch]);
   const capture = useCallback((image: ImageData) => {
@@ -50,17 +57,31 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     stopTouch();
     const frame = { image: null as ImageData | null, at: null as number | null };
     pending.current = frame; setPhase('processing'); setFlash(null);
-    setCaptured(image); setIsolated(null); setPortraitStatus('Izoluji portrét…');
+    basePortrait.current = null; setCaptured(image); setIsolated(null); setPortraitStatus('Izoluji portrét…');
     void processor.current?.process(image).then(result => {
       if (pending.current !== frame || !engine.current?.running || document.hidden) return;
-      frame.image = result; frame.at = performance.now();
-      setIsolated(result); setPortraitStatus(''); setPhase('flash'); setFlash(0);
+      basePortrait.current = result;
+      const portrait = stretchPortrait(result, stretchEnabled.current);
+      frame.image = portrait; frame.at = performance.now();
+      setIsolated(portrait); setPortraitStatus(''); setPhase('flash'); setFlash(0);
     }).catch(cause => {
       if (pending.current !== frame) return;
       pending.current = null; setPhase('idle'); setFlash(null);
       setPortraitStatus(cause instanceof Error ? cause.message : 'Portrét nelze izolovat.');
     });
   }, [stopTouch]);
+  const changeStretch = (enabled: boolean) => {
+    stretchEnabled.current = enabled; setStretch(enabled);
+    const source = basePortrait.current;
+    if (!source) return;
+    const image = stretchPortrait(source, enabled); setIsolated(image);
+    if (pending.current?.image) pending.current.image = image;
+    else engine.current?.updatePortrait(image, portraitResolution.current);
+  };
+  const changeResolution = (size: number) => {
+    portraitResolution.current = size; setResolution(size);
+    if (isolated) engine.current?.updatePortrait(isolated, size);
+  };
   const photo = usePortraitCamera(photoEnabled && ready && !paused && !error && phase === 'idle', capture);
   useEffect(() => {
     const input = new PortraitProcessor(); processor.current = input;
@@ -126,7 +147,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         if (elapsed < FLASH_SECONDS) setFlash(elapsed);
         else {
           pending.current = null; setFlash(null);
-          try { engine.current?.setPortrait(frame.image); }
+          try { engine.current?.setPortrait(frame.image, portraitResolution.current); }
           catch (cause) { setError(cause instanceof Error ? cause.message : 'Fotografii se nepodařilo zobrazit.'); }
         }
       }
@@ -161,7 +182,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     <output className="app-version" title={APP_VERSION} aria-label={`Verze aplikace ${APP_VERSION}`}>
       v {APP_VERSION === 'development' ? 'vývoj' : APP_VERSION.slice(0, 7)}
     </output>
-    <PortraitPreview captured={captured} isolated={isolated} status={portraitStatus} />
+    <PortraitPreview captured={captured} isolated={isolated} status={portraitStatus} stretch={stretch} onStretch={changeStretch} resolution={resolution} onResolution={changeResolution} />
     <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
     <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."

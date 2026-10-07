@@ -2,6 +2,7 @@
 <body style="background:#111;color:#eee"><canvas style="width:420px;height:420px"></canvas><output>Running…</output>
 <script type="module">
   import { FluidBowl } from '../lib/fluid.ts';
+  import { stretchPortrait } from '../lib/portrait-stretch.ts';
   import { paintPortrait } from './synthetic-portrait.js';
   const canvas = document.querySelector('canvas'), output = document.querySelector('output');
   const source = document.createElement('canvas'); source.width = source.height = 512; paintPortrait(source);
@@ -13,9 +14,20 @@
   const difference = (a, b) => { let sum = 0; for (let i = 0; i < a.length; i += 4) sum += Math.abs(a[i] - b[i]); return sum / (a.length / 4); };
   try {
     const before = material();
-    bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512));
+    const image = source.getContext('2d').getImageData(0, 0, 512, 512);
+    const untouched = image.data.slice();
+    const stretched = stretchPortrait(image, true);
+    assert(image.data.every((value, i) => value === untouched[i]), 'Stretch must preserve the original capture');
+    assert(stretched.data.some((value, i) => value !== untouched[i]), 'Stretch must visibly transform the portrait');
+    assert(stretchPortrait(image, false) === image, 'Switching off must restore the unchanged capture');
+    bowl.setPortrait(image);
     bowl.setPaused(true);
     assert(difference(before, material()) === 0, 'Capture must not replace the current liquid');
+    bowl.updatePortrait(stretched, 16);
+    assert(bowl.portraitPattern.size === 16, 'Coarse setting must use a real 16-square guide');
+    bowl.updatePortrait(image, 160);
+    assert(bowl.portraitPattern.size === 160, 'Fine setting must use a real 160-square guide');
+    assert(difference(before, material()) === 0, 'Changing controls must preserve the saved fluid field');
     for (let i = 0; i < 100; i++) bowl.stepMaterial(1 / 30);
     assert(bowl.portraitPhase === 'holding', 'Portrait must emerge gradually');
     assert(difference(before, material()) > .05, 'The guide must rearrange the actual material');
@@ -28,7 +40,7 @@
     bowl.setPaused(false); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512)); bowl.reset();
     assert(!bowl.portraitActive, 'Reset must discard the portrait');
     assert(gl.getError() === gl.NO_ERROR, 'GPU mask and gathering must be error free');
-    output.textContent = 'PASS: continuous fluid, guided reveal, dissolve, repeat readiness, reset';
+    output.textContent = 'PASS: stretch on/off, 16–160 grid, saved fluid unchanged, guided reveal, dissolve, repeat readiness, reset';
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
   finally { bowl.dispose(); }
 </script></body></html>

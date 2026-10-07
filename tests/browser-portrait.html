@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="cs" class="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) aside {visibility:hidden}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) #fixture-controls {visibility:hidden}</style></head>
 <body><div id="root"></div><aside id="fixture-controls" style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <button id="freeze">Vyfotit a zastavit portrét</button> <button id="no-face">Záběr bez člověka</button> <output id="result">Umělá kamera; nejprve klepněte na mísu.</output></aside>
 <script type="module">
   import React from 'react';

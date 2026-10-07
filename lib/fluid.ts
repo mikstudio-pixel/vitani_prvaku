@@ -1081,17 +1081,29 @@ export class FluidBowl {
     this.draw('display', null, { dye, surface, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
     if (flowEnabled) this.draw('flowDisplay', null, { particleState: this.particles.read, viewportSize: this.canvas.width });
   }
-  setPortrait(image: ImageData) {
+  setPortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
     if (this.disposed || this.paused || document.hidden) throw new Error('Kapalina není připravená na fotografii.');
     if (this.portraitActive) return;
     this.touchTarget = null;
-    const values = portraitPattern(image);
     this.clearTelemetry(); this.onTelemetry?.(null);
     this.draw('patternRestore', this.portraitOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });
+    this.uploadPortrait(image, resolution);
+    this.portraitElapsed = 0;
+  }
+  updatePortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
+    if (this.disposed || !this.portraitActive) return;
+    this.uploadPortrait(image, resolution);
+    if (this.portraitPhase === 'holding') this.portraitElapsed = BOB_TIMING.reveal;
+  }
+  private uploadPortrait(image: ImageData, resolution: number) {
+    const size = Number.isFinite(resolution) ? Math.max(16, Math.min(160, Math.round(resolution))) : PORTRAIT_SIZE;
+    const values = portraitPattern(image, size);
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.portraitPattern.texture);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, PORTRAIT_SIZE, PORTRAIT_SIZE, gl.RED, gl.FLOAT, values);
-    this.portraitElapsed = 0;
+    if (this.portraitPattern.size !== size) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, size, size, 0, gl.RED, gl.FLOAT, values);
+      this.portraitPattern.size = size;
+    } else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, size, size, gl.RED, gl.FLOAT, values);
   }
 
   revealQr() {
