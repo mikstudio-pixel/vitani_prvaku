@@ -21,7 +21,7 @@ export class PortraitProcessor {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => this.dispose('Zpracování portrétu trvalo příliš dlouho. Zkuste to znovu.'), 30000);
       this.requests.set(id, { resolve, reject, timer });
-      // Copy so the diagnostic preview can still use the original camera frame.
+      // Keep the caller's original frame intact when transferring pixels to the worker.
       const frame = image ? { width: image.width, height: image.height, data: new Uint8ClampedArray(image.data) } : undefined;
       worker.postMessage({ id, frame }, frame ? [frame.data.buffer] : []);
     });

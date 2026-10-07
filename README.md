@@ -39,10 +39,9 @@ One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
 Once full, the ring flashes twice. The face is isolated from the mirrored camera
 frame with room around the head, then converted into a five-tone monochrome
-mask (128 × 128 by default, adjustable from 16 to 160). The portrait controls
-include stretch and a Pixelace switch. Turning pixelation off keeps a smooth
-guide throughout the reveal and hold, so the liquid joins into rounded curves
-instead of square cells. Switching it back restores the pixelated guide.
+mask at a fixed 128 × 128 resolution. Stretch and pixelation are always enabled.
+The visitor sees only the bowl and its purple LED ring, without portrait
+controls or camera preview images.
 The current liquid rearranges into the portrait over three seconds, holds for
 three seconds, then dissolves over two seconds back into the previous liquid.
 The next visitor can then start automatically. No image overlay is used.
