@@ -57,3 +57,5 @@ Press Enter on the bowl to deny sensors, then use arrow keys; the scenario must
 still reach the mixing prompt. This fixture is not included in the Pages build.
 
 The local-only `/tests/browser-repeat.html` fixture runs three consecutive gesture restarts with the material physics paused, using the real WebGL bowl and scenario indicator. Each reset clears input activity; circular browser input must leave standby without moving the frozen material.
+
+The local-only `/tests/browser-tilt.html?display=left` (or `right`) fixture sends five seconds of tilt readings with missing compass yaw. The side display must leave standby and identify its local gyroscope as the data source.

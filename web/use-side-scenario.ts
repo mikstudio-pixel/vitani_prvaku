@@ -35,8 +35,8 @@ export function useSideScenario(sync: TraySync) {
 
   useEffect(() => {
     const orientation = (event: DeviceOrientationEvent) => {
-      if (isNativeHost() || event.beta === null || event.gamma === null || event.alpha === null) return;
-      const gyro: GyroAngles = browserGyro(event.alpha, event.beta, event.gamma);
+      if (isNativeHost() || event.beta === null || event.gamma === null) return;
+      const gyro: GyroAngles = browserGyro(event.alpha ?? 0, event.beta, event.gamma);
       if (!Object.values(gyro).every(Number.isFinite)) return;
       const now = time(), previous = local.current;
       const dt = previous ? now - previous.receivedAt : 0;
