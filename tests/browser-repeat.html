@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="cs">
+  <head><meta charset="utf-8"><title>Browser repeat regression</title></head>
+  <body>
+    <canvas width="360" height="360" style="width:360px;height:360px"></canvas>
+    <output>Running three paused-physics restart attempts…</output>
+    <script type="module">
+      import { FluidBowl } from '../lib/fluid.ts';
+      import { MixingIndicator } from '../lib/mixing-indicator.ts';
+      const output = document.querySelector('output');
+      const bowl = new FluidBowl(document.querySelector('canvas'), { quality: 'performance' });
+      const indicator = new MixingIndicator();
+      const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+      const assert = (condition, message) => { if (!condition) throw new Error(message); };
+      try {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          bowl.setTilt({ x: 0, y: 0 });
+          bowl.setPhysicsPaused(true);
+          bowl.reset();
+          indicator.reset({ waitForLift: true });
+          const start = performance.now();
+          while (performance.now() - start < 500) {
+            const now = await frame();
+            indicator.step(now / 1000, bowl.getTrayState());
+          }
+          assert(indicator.storyFrame.stage === 'standby', 'Rest must wait for a gesture');
+          assert(bowl.getTrayState().activity === 0, 'Reset must clear previous input');
+          const gestureStart = performance.now();
+          let peak = 0;
+          while (performance.now() - gestureStart < 2500) {
+            const now = await frame();
+            const t = (now - gestureStart) / 1000;
+            bowl.setTilt({ x: .8 * Math.cos(t * 4), y: .8 * Math.sin(t * 4) });
+            const state = bowl.getTrayState();
+            peak = Math.max(peak, state.activity);
+            indicator.step(now / 1000, state);
+          }
+          assert(peak > .5, `Attempt ${attempt}: paused material must still sample input`);
+          assert(indicator.storyFrame.stage !== 'standby', `Attempt ${attempt}: next portion must start`);
+          output.textContent = `Passed ${attempt}/3 restart attempts`;
+        }
+        output.textContent = 'PASS: three consecutive restart attempts with physics paused';
+      } catch (error) {
+        output.textContent = `FAIL: ${error.message}`;
+        console.error(error);
+      } finally { bowl.dispose(); }
+    </script>
+  </body>
+</html>

@@ -525,6 +525,8 @@ export class FluidBowl {
   private tilt: Tilt = { x: 0, y: 0 };
   private targetTilt: Tilt = { x: 0, y: 0 };
   private stirring = 0;
+  private activityTilt: Tilt = { x: 0, y: 0 };
+  private activityDrive = 0;
   private finaleStirring = 0;
   private mixingSensitivity: number = MIXING_SENSITIVITY.default;
   private separationSeed = 0;
@@ -674,12 +676,12 @@ export class FluidBowl {
     this.loop.setEnabled(enabled);
     if (!enabled) {
       this.bobGesture.reset();
-      this.stirring = 0; this.statsStart = 0; this.statsFrames = 0; this.slowSamples = 0;
+      this.stirring = 0; this.activityDrive = 0; this.activityTilt = { ...this.targetTilt }; this.statsStart = 0; this.statsFrames = 0; this.slowSamples = 0;
     }
   };
 
   getTrayState(): TrayTelemetry {
-    const activity = Math.min(1, Math.abs(this.stirring));
+    const activity = Math.min(1, Math.abs(this.activityDrive));
     const settling = Math.hypot(this.slosh.velocity.x, this.slosh.velocity.y) > 0.001;
     return {
       phase: activity > 0.04 ? 'mixing' : settling ? 'settling' : 'ready',
@@ -1060,6 +1062,7 @@ export class FluidBowl {
     this.finaleStirring = 0;
     this.clearTelemetry(); this.onTelemetry?.(null);
     this.tilt = { ...this.targetTilt };
+    this.activityTilt = { ...this.targetTilt }; this.activityDrive = 0;
     this.slosh = { offset: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } }; this.stirring = 0; this.ambientTime = 0; this.separationSeed = Math.random() * 100;
     this.noiseSeed = NaN;
     this.resetPending = true;
@@ -1113,6 +1116,11 @@ export class FluidBowl {
       this.bobElapsed = 0;
       this.clearTelemetry(); this.onTelemetry?.(null);
     }
+    // Continue sampling real gestures while the material is frozen or showing
+    // its neutral QR pose. Standby needs this input to start the next portion.
+    const previousActivityTilt = this.activityTilt;
+    this.activityTilt = smoothTilt(previousActivityTilt, this.targetTilt, dt);
+    this.activityDrive = stepStirring(this.activityDrive, previousActivityTilt, this.activityTilt, dt, this.mixingSensitivity);
     const previous = this.tilt;
     this.tilt = smoothTilt(previous, this.qrElapsed >= 0 || this.easterEggActive || this.finaleStirring !== 0 ? { x: 0, y: 0 } : this.targetTilt, dt);
     this.stirring = !this.physicsPaused && this.stirringEnabled && this.qrElapsed < 0 && !this.easterEggActive

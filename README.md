@@ -52,3 +52,5 @@ fails the first WebGL allocation and denies motion permission. Select Úsporný
 in Nastavení: the graphics error must disappear and the bowl must become active.
 Press Enter on the bowl to deny sensors, then use arrow keys; the scenario must
 still reach the mixing prompt. This fixture is not included in the Pages build.
+
+The local-only `/tests/browser-repeat.html` fixture runs three consecutive gesture restarts with the material physics paused, using the real WebGL bowl and scenario indicator. Each reset clears input activity; circular browser input must leave standby without moving the frozen material.
