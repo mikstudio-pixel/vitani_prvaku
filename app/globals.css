@@ -49,3 +49,5 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 
 /* Visitor mode contains only the liquid and its physical LED ring. */
 .camera-source {position:fixed;left:-2px;top:-2px;width:1px;height:1px;opacity:0;pointer-events:none}
+
+.app-version {position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:3;color:#aaa;font:12px/1.3 ui-monospace,'SFMono-Regular',Consolas,monospace;letter-spacing:.03em;pointer-events:none;user-select:none}

@@ -136,6 +136,9 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   };
 
   return <main className="installation" data-portrait={phase} data-camera={photo.state.phase} data-version={APP_VERSION}>
+    <output className="app-version" title={APP_VERSION} aria-label={`Verze aplikace ${APP_VERSION}`}>
+      v {APP_VERSION === 'development' ? 'vývoj' : APP_VERSION.slice(0, 7)}
+    </output>
     <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
     <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."
