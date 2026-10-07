@@ -50,6 +50,8 @@ For the browser recovery regression, start `npm run dev` and open
 `/tests/browser-recovery.html` on the printed local port. The fixture deliberately
 fails the first WebGL allocation and denies motion permission. Select Úsporný
 in Nastavení: the graphics error must disappear and the bowl must become active.
+Then select Detailní: the third allocation deliberately fails, disabling the
+bowl while the quality selector stays available. Select Úsporný again to recover.
 Press Enter on the bowl to deny sensors, then use arrow keys; the scenario must
 still reach the mixing prompt. This fixture is not included in the Pages build.
 

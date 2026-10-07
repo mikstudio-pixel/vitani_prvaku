@@ -4,19 +4,18 @@
   <body>
     <div id="root"></div>
     <script type="module">
-      // Local QA only: fail the initial WebGL allocation, then permit recovery
-      // by selecting performance mode. Deny motion access so manual input is
+      // Local QA only: fail the first and third WebGL allocations to cover both
+      // initial failure and failure after recovery. Deny motion access so input is
       // verified independently of real device sensors.
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import Home from '../app/page.tsx';
       import '../app/globals.css';
       const getContext = HTMLCanvasElement.prototype.getContext;
-      let failFirst = true;
+      let allocations = 0;
       HTMLCanvasElement.prototype.getContext = function(...args) {
-        if (args[0] === 'webgl2' && failFirst) {
-          failFirst = false;
-          throw new Error('Test: initial graphics allocation failed');
+        if (args[0] === 'webgl2' && [1, 3].includes(++allocations)) {
+          throw new Error(`Test: graphics allocation ${allocations} failed`);
         }
         return Reflect.apply(getContext, this, args);
       };

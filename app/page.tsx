@@ -183,6 +183,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       setReady(true);
       reportSimulationReady(true);
     } catch (cause) {
+      setReady(false);
       setError(cause instanceof Error ? cause.message : 'Simulaci se nepodařilo spustit.');
     }
     canvas.addEventListener('webglcontextlost', lost);
