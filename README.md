@@ -93,3 +93,23 @@ material currents, release fade, edge coordinates and reset, without a camera.
 passive pigment transport, bounded concentration, rim alignment, unchanged
 phase material, monochrome portraits, paused transport, release fade and reset.
 It also provides a paused preview and direct touch/drag interaction.
+
+## Soukromá galerie portrétů
+
+Backend je samostatný Supabase projekt `efezpjzltynkfrqpasju` (Frankfurt).
+Počáteční schéma v `supabase/setup.sql` bylo aplikováno 7. 10. 2026; znovu ho nespouštějte.
+Veřejný publishable klíč v klientu není heslo. Tabulky i privátní bucket vyžadují přihlášení a schválený řádek `portrait_access`.
+
+- `/pripojeni/`: jednorázové přihlášení zařízení e-mailem a heslem, nebo odhlášení.
+- `/`: iPad; po začátku vynořování se jednou uloží zpracovaný monochromní PNG s aktuálními čtverečky a roztažením. Pozdější změna slideru neupravuje již uloženou fotku.
+- `/galerie/`: počítač; načte dosavadní portréty a další přidává přes Realtime. Po výpadku doplní chybějící řádky; záložní synchronizace běží každých 30 s.
+
+V Authentication → Users vytvořte dva účty pomocí Add user → Create new user, ne pomocí e-mailové pozvánky.
+Jejich UUID přidejte administrátorským SQL do `portrait_access`: iPad `can_upload=true`, galerie `false`.
+Samotné založení nebo veřejná registrace účtu nezpřístupňuje fotky. Schválená zařízení nemohou měnit ani mazat záznamy.
+Přihlášení má vlastní klíč `vitani-prvaku.portrait-auth`, oddělený od původní aplikace.
+
+Ukládají se pouze hotové černobílé portréty. Plný snímek a barevný izolovaný portrét zůstávají v paměti prohlížeče.
+Při výpadku iPad drží maximálně pět neodeslaných PNG v paměti a nabízí opakování. Obnovení nebo zavření stránky tuto frontu ztratí.
+Po akci smažte soubory přes Storage dashboard/API a následně řádky portrétů; samotné SQL mazání storage.objects fyzické soubory neodstraní.
+Nativní aplikace ani výstavní instalace tento projekt nepoužívají.

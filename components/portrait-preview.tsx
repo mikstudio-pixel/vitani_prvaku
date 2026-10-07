@@ -1,4 +1,4 @@
-import { portraitPattern } from '@/lib/portrait-material';
+import { portraitPixels } from '@/lib/portrait-material';
 import { useEffect, useMemo, useRef } from 'react';
 
 function Frame({ image, label }: { image: ImageData | null; label: string }) {
@@ -16,12 +16,7 @@ export function PortraitPreview({ captured, isolated, status, stretch, onStretch
 }) {
   const preview = useMemo(() => {
     if (!isolated) return null;
-    const pattern = portraitPattern(isolated, resolution), data = new Uint8ClampedArray(resolution * resolution * 4);
-    for (let y = 0; y < resolution; y++) for (let x = 0; x < resolution; x++) {
-      const i = (y * resolution + x) * 4, light = Math.round(255 * (1 - pattern[(resolution - 1 - y) * resolution + x]));
-      data[i] = data[i + 1] = data[i + 2] = light; data[i + 3] = 255;
-    }
-    return new ImageData(data, resolution, resolution);
+    return portraitPixels(isolated, resolution);
   }, [isolated, resolution]);
   return <aside className={`portrait-preview${captured ? '' : ' is-empty'}`} aria-label="Náhled a efekt fotografie">
     {captured && <><Frame image={captured} label="Vyfoceno" /><Frame image={preview} label={stretch ? 'Roztažený portrét' : 'Do kapaliny'} /></>}

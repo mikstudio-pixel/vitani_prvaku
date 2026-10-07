@@ -15,6 +15,6 @@ export default defineConfig(({ command, isPreview }) => {
     },
     css: { postcss: { plugins: [tailwindcss()] } },
     plugins: [react()],
-    build: { outDir: 'dist', target: 'safari16' },
+    build: { outDir: 'dist', target: 'safari16', rolldownOptions: { input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), gallery: fileURLToPath(new URL('./galerie/index.html', import.meta.url)), login: fileURLToPath(new URL('./pripojeni/index.html', import.meta.url)) } } },
   };
 });

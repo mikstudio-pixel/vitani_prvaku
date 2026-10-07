@@ -44,3 +44,12 @@ export function portraitPattern(image: Pick<ImageData, 'data' | 'width' | 'heigh
   }
   return values;
 }
+
+export function portraitPixels(image: ImageData, size = PORTRAIT_SIZE): ImageData {
+  const pattern = portraitPattern(image, size), data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = (y * size + x) * 4, light = Math.round(255 * (1 - pattern[(size - 1 - y) * size + x]));
+    data[i] = data[i + 1] = data[i + 2] = light; data[i + 3] = 255;
+  }
+  return new ImageData(data, size, size);
+}
