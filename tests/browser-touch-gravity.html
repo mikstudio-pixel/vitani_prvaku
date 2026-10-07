@@ -1,0 +1,47 @@
+<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Touch gravity — local GPU fixture</title></head>
+<body style="background:#111;color:#eee;font:14px sans-serif"><canvas style="width:600px;height:600px"></canvas><p><button id="run">Ukázat gravitační důlek</button> <output>Lokální simulace, bez kamery.</output></p>
+<script type="module">
+  import { FluidBowl } from '../lib/fluid.ts';
+  const canvas = document.querySelector('canvas'), output = document.querySelector('output');
+  const bowl = new FluidBowl(canvas, { quality: 'performance', automaticCrests: true });
+  bowl.setPaused(true);
+  const gl = canvas.getContext('webgl2');
+  const read = target => { const data = new Float32Array(target.size ** 2 * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, target.buffer); gl.readPixels(0,0,target.size,target.size,gl.RGBA,gl.FLOAT,data); return data; };
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  const meanInflow = (target, point) => {
+    const data = read(target); let sum = 0, count = 0;
+    for (let y=0;y<target.size;y++) for(let x=0;x<target.size;x++) {
+      const dx=point.x-(x+.5)/target.size, dy=point.y-(y+.5)/target.size, distance=Math.hypot(dx,dy);
+      if (distance<.04 || distance>.22 || Math.hypot((x+.5)/target.size-.5,(y+.5)/target.size-.5)>.43) continue;
+      const i=(y*target.size+x)*4; sum+=(data[i]*dx+data[i+1]*dy)/distance; count++;
+    }
+    assert([...data].every(Number.isFinite), 'Velocity must stay finite');
+    return sum/count;
+  };
+  document.getElementById('run').onclick = async () => {
+    try {
+      bowl.reset(); bowl.setTouchAt({x:.68,y:.65});
+      const before=read(bowl.dye.read);
+      for(let i=0;i<9;i++) bowl.tick(1/30);
+      const surface=meanInflow(bowl.velocity.read,{x:.68,y:.65});
+      const material=meanInflow(bowl.mixingVelocity.read,{x:.68,y:.65});
+      assert(surface>.001 && material>.001, 'Both surface and material must flow toward the touch');
+      const after=read(bowl.dye.read); let change=0;
+      for(let i=0;i<after.length;i+=4) change+=Math.abs(after[i]-before[i]);
+      assert(change/after.length>.0001, 'Gravity must move the liquid material');
+      bowl.render();
+      output.textContent=`Inward flow: surface ${surface.toFixed(4)}, material ${material.toFixed(4)}. Touch held for display…`;
+      await new Promise(resolve=>setTimeout(resolve,4000));
+      bowl.setTouchAt(null);
+      for(let i=0;i<30;i++) bowl.tick(1/30);
+      assert(bowl.touchStrength<.02, 'Release must fade the field');
+      bowl.setTouchAt({x:.9,y:.9});
+      assert(Math.hypot(bowl.touchTarget.x-.5,bowl.touchTarget.y-.5)<bowl.boundaryRadius, 'Edge input must stay inside the fluid');
+      bowl.reset();
+      assert(bowl.touchStrength===0 && bowl.touchTarget===null, 'Reset must clear the field');
+      assert(gl.getError()===gl.NO_ERROR, 'GPU field must be error-free');
+      output.textContent=`PASS: inward flow in both solvers (${surface.toFixed(4)}), material transport, fade, edge clamp, reset`;
+    } catch(error) { output.textContent=`FAIL: ${error.message}`; console.error(error); }
+  };
+  window.addEventListener('pagehide',()=>bowl.dispose());
+</script></body></html>

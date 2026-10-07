@@ -45,6 +45,14 @@ uniform bool mergedBoundary;
 uniform sampler2D mergeGeometry;
 uniform sampler2D boundaryGeometry;
 uniform vec2 push;
+uniform vec2 touchPoint;
+uniform float touchStrength;
+// Smooth potential well: bounded force, zero at the finger, no point sink.
+vec2 gravityAt(vec2 p){
+ if(touchStrength<0.0001)return push;
+ vec2 d=touchPoint-p;
+ return push+touchStrength*1.8*d*exp(-dot(d,d)/0.12);
+}
 const float R=0.495;
 bool inside(vec2 p){return length(p-0.5)<boundaryRadius;}
 bool wet(vec2 p){return curvedBoundary?texture(boundaryGeometry,p).z>0.00001:inside(p);}
@@ -66,7 +74,7 @@ float boundaryHeight(sampler2D source,vec2 p){
  vec2 d=p-0.5;float r=length(d);vec2 n=d/max(r,0.00001);
  float imageRadius=min(2.0*boundaryRadius-r,boundaryRadius-1.5*texel.x);
  // Normal pressure balances tray acceleration at the actual circular wall.
- return sampleLinear(source,0.5+n*imageRadius).x+(r-imageRadius)*dot(push,n)/1.2;
+ return sampleLinear(source,0.5+n*imageRadius).x+(r-imageRadius)*dot(gravityAt(0.5+n*boundaryRadius),n)/1.2;
 }
 vec2 boundaryVelocity(sampler2D source,vec2 p){
  if(wet(p))return texture(source,p).xy;
@@ -249,8 +257,8 @@ void main(){
   ?vec2(scalarSlope(surface,uv,vec2(1,0)),scalarSlope(surface,uv,vec2(0,1)))
   :vec2(height(uv+h)-height(uv-h),height(uv+h.yx)-height(uv-h.yx))/(2.0*texel.x);
  vec2 laplacian=(vel(uv+h)+vel(uv-h)+vel(uv+h.yx)+vel(uv-h.yx)-4.0*v)/(texel.x*texel.x);
- // A spatially uniform tray force competes with the surface's hydrostatic slope.
- v=(v+dt*(push+stirringForce(uv)-1.2*slope+viscosity*laplacian))*exp(-1.45*dt);
+ // Both tray gravity and the touch well compete with hydrostatic pressure.
+ v=(v+dt*(gravityAt(uv)+stirringForce(uv)-1.2*slope+viscosity*laplacian))*exp(-1.45*dt);
  v*=min(1.0,maxSpeed/max(length(v),0.00001));
  vec2 d=uv-0.5;float r=length(d);vec2 n=d/max(r,0.00001);
  if(!curvedBoundary)v-=n*dot(v,n)*smoothstep(boundaryRadius-texel.x*(hybridBoundary?0.75:1.5),boundaryRadius,r);
@@ -545,6 +553,9 @@ export class FluidBowl {
   private resetPending = false;
   private elapsed = 0;
   private disposed = false;
+  private touchTarget: Tilt | null = null;
+  private touchPoint: Tilt = { x: .5, y: .5 };
+  private touchStrength = 0;
   private resizeObserver: ResizeObserver;
   private visible = true;
   private intersectionObserver: IntersectionObserver;
@@ -687,6 +698,7 @@ export class FluidBowl {
     if (enabled && this.resetPending) this.resetTextures(true);
     this.loop.setEnabled(enabled);
     if (!enabled) {
+      this.touchTarget = null; this.touchStrength = 0;
       this.bobGesture.reset();
       this.stirring = 0; this.activityDrive = 0; this.activityTilt = { ...this.targetTilt }; this.statsStart = 0; this.statsFrames = 0; this.slowSamples = 0;
     }
@@ -774,6 +786,8 @@ export class FluidBowl {
     this.uniform(program, 'hybridBoundary', this.rimMode === 'hybrid' || this.rimMode === 'curved');
     this.uniform(program, 'curvedBoundary', this.rimMode === 'curved');
     this.uniform(program, 'mergedBoundary', this.rimMode === 'curved' && this.mergeCells);
+    this.uniform(program, 'touchPoint', [this.touchPoint.x, this.touchPoint.y]);
+    this.uniform(program, 'touchStrength', this.touchStrength);
     this.uniform(program, 'texel', [1 / this.simSize, 1 / this.simSize]);
     let unit = 0;
     for (const [key, value] of Object.entries({ boundaryGeometry: this.boundaryGeometry, mergeGeometry: this.mergeGeometry, ...uniforms })) {
@@ -795,6 +809,16 @@ export class FluidBowl {
   private resize() {
     const size = Math.max(1, Math.min(this.renderLimit, Math.round(this.canvas.clientWidth * Math.min(window.devicePixelRatio || 1, this.native ? 1 : 2))));
     if (this.canvas.width !== size) { this.canvas.width = size; this.canvas.height = size; }
+  }
+  /** Normalized canvas coordinates, with upward GPU Y. Null releases the well. */
+  setTouchAt(point: Tilt | null) {
+    if (this.disposed) return;
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) { this.touchTarget = null; return; }
+    const x = point.x - .5, y = point.y - .5;
+    const scale = Math.min(1, this.boundaryRadius * .95 / Math.max(Math.hypot(x, y), .00001));
+    const next = { x: .5 + x * scale, y: .5 + y * scale };
+    if (!this.touchTarget && this.touchStrength < .01) this.touchPoint = next;
+    this.touchTarget = next;
   }
   setTilt(value: Tilt) { this.targetTilt = clampTilt(value); }
   setMixingSensitivity(value: number) {
@@ -1060,6 +1084,7 @@ export class FluidBowl {
   setPortrait(image: ImageData) {
     if (this.disposed || this.paused || document.hidden) throw new Error('Kapalina není připravená na fotografii.');
     if (this.portraitActive) return;
+    this.touchTarget = null;
     const values = portraitPattern(image);
     this.clearTelemetry(); this.onTelemetry?.(null);
     this.draw('patternRestore', this.portraitOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });
@@ -1090,6 +1115,7 @@ export class FluidBowl {
   reset({ render = true }: { render?: boolean } = {}) {
     if (this.disposed) return;
     this.elapsed = 0; this.portraitElapsed = -1;
+    this.touchTarget = null; this.touchStrength = 0;
     this.bobElapsed = -1; this.bobGesture.reset();
     this.qrReleasing = false;
     this.qrElapsed = -1; this.qrResult = null;
@@ -1144,6 +1170,13 @@ export class FluidBowl {
   private tick = (dt: number) => {
     if (this.disposed) return;
     const time = performance.now();
+    const attraction = this.touchTarget && !this.portraitActive ? 1 : 0;
+    this.touchStrength += (attraction - this.touchStrength) * (1 - Math.exp(-dt / (attraction ? .14 : .22)));
+    if (this.touchStrength < .0001) this.touchStrength = 0;
+    if (this.touchTarget) {
+      const blend = 1 - Math.exp(-dt / .06);
+      this.touchPoint = { x: this.touchPoint.x + (this.touchTarget.x - this.touchPoint.x) * blend, y: this.touchPoint.y + (this.touchTarget.y - this.touchPoint.y) * blend };
+    }
     this.elapsed = Math.min(4_294_967, this.elapsed + dt);
     if (this.bobPattern && this.bobOriginal && !this.easterEggActive && this.finaleStirring === 0 && this.bobGesture.step(time / 1000, this.targetTilt)) {
       this.draw('patternRestore', this.bobOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });

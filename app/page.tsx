@@ -19,7 +19,8 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const device = useRef<DeviceTilt | null>(null);
   const pending = useRef<{ image: ImageData; at: number } | null>(null);
   const cancelHold = useRef(() => {});
-  const pointer = useRef<number | null>(null);
+  const touchPointer = useRef<number | null>(null);
+  const contacts = useRef(new Set<number>());
   const liveTilt = useRef<Tilt>({ x: 0, y: 0 });
   const [phase, setPhase] = useState<Phase>('idle');
   const [flash, setFlash] = useState<number | null>(null);
@@ -30,14 +31,19 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const updateTilt = useCallback((value: Tilt) => {
     liveTilt.current = clampTilt(value); engine.current?.setTilt(liveTilt.current);
   }, []);
-  const reset = useCallback(() => {
-    cancelHold.current(); pending.current = null; pointer.current = null;
-    setPhase('idle'); setFlash(null); engine.current?.reset();
+  const stopTouch = useCallback(() => {
+    touchPointer.current = null; engine.current?.setTouchAt(null);
   }, []);
+  const cancelTouch = useCallback(() => { contacts.current.clear(); stopTouch(); }, [stopTouch]);
+  const reset = useCallback(() => {
+    cancelHold.current(); cancelTouch(); pending.current = null;
+    setPhase('idle'); setFlash(null); engine.current?.reset();
+  }, [cancelTouch]);
   const capture = useCallback((image: ImageData) => {
     if (!engine.current?.running || engine.current.portraitActive || pending.current) return;
+    stopTouch();
     pending.current = { image, at: performance.now() }; setPhase('flash'); setFlash(0);
-  }, []);
+  }, [stopTouch]);
   const photo = usePortraitCamera(photoEnabled && ready && !paused && !error && phase === 'idle', capture);
   useEffect(() => { cancelHold.current = photo.cancel; }, [photo.cancel]);
   const prepare = () => {
@@ -63,7 +69,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
       bowl?.setPaused(document.hidden); setPaused(document.hidden);
     };
     const blur = () => {
-      cancelHold.current(); pointer.current = null; updateTilt({ x: 0, y: 0 });
+      cancelHold.current(); cancelTouch(); updateTilt({ x: 0, y: 0 });
       if (pending.current) { pending.current = null; setPhase('idle'); setFlash(null); }
     };
     try {
@@ -82,12 +88,12 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('blur', blur); window.addEventListener('pagehide', reset);
     return () => {
-      pending.current = null; cancelHold.current(); bowl?.dispose(); engine.current = null;
+      pending.current = null; cancelHold.current(); cancelTouch(); bowl?.dispose(); engine.current = null;
       canvas.removeEventListener('webglcontextlost', lost);
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('blur', blur); window.removeEventListener('pagehide', reset);
     };
-  }, [reset, updateTilt]);
+  }, [reset, updateTilt, cancelTouch]);
   useEffect(() => {
     if (!ready || paused) return;
     let animation = 0;
@@ -115,10 +121,18 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [reset]);
-  const release = () => { pointer.current = null; if (sensor.phase !== 'active') updateTilt({ x: 0, y: 0 }); };
-  const move = (clientX: number, clientY: number) => {
-    const box = bowlRef.current?.getBoundingClientRect();
-    if (box) updateTilt({ x: ((clientX - box.left) / box.width - .5) * 2.25, y: ((clientY - box.top) / box.height - .5) * 2.25 });
+  const attract = (clientX: number, clientY: number) => {
+    const box = canvasRef.current?.getBoundingClientRect();
+    if (box && box.width > 0 && box.height > 0) engine.current?.setTouchAt({ x: (clientX - box.left) / box.width, y: 1 - (clientY - box.top) / box.height });
+  };
+  const beginTouch = (id: number, clientX: number, clientY: number) => {
+    contacts.current.add(id);
+    if (contacts.current.size !== 1 || phase !== 'idle' || pending.current || engine.current?.portraitActive) { stopTouch(); return; }
+    touchPointer.current = id; attract(clientX, clientY);
+  };
+  const endTouch = (id: number) => {
+    contacts.current.delete(id); photo.up(id);
+    if (touchPointer.current === id) stopTouch();
   };
 
   return <main className="installation" data-portrait={phase} data-camera={photo.state.phase} data-version={APP_VERSION}>
@@ -128,29 +142,33 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
       onPointerDown={event => {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         event.preventDefault(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId);
+        beginTouch(event.pointerId, event.clientX, event.clientY);
         if (photoEnabled && photo.state.phase !== 'ready') { prepare(); return; }
         photo.down(event.pointerId, event.clientX, event.clientY);
-        if (event.pointerType === 'mouse' && pointer.current === null) pointer.current = event.pointerId;
       }}
       onPointerMove={event => {
         photo.move(event.pointerId, event.clientX, event.clientY);
-        if (event.pointerId === pointer.current && sensor.phase !== 'active') move(event.clientX, event.clientY);
+        if (event.pointerId === touchPointer.current) attract(event.clientX, event.clientY);
       }}
-      onPointerUp={event => { photo.up(event.pointerId); if (event.pointerId === pointer.current) release(); }}
-      onPointerCancel={() => { photo.cancel(); release(); }}
-      onLostPointerCapture={event => { photo.up(event.pointerId); if (event.pointerId === pointer.current) release(); }}
-      onBlur={() => { photo.cancel(); release(); }} onContextMenu={event => event.preventDefault()}
+      onPointerUp={event => endTouch(event.pointerId)}
+      onPointerCancel={() => { photo.cancel(); cancelTouch(); }}
+      onLostPointerCapture={event => endTouch(event.pointerId)}
+      onBlur={() => { photo.cancel(); cancelTouch(); }} onContextMenu={event => event.preventDefault()}
       onDoubleClick={() => device.current?.calibrate()}
-      onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') photo.up(-1); }}
+      onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') endTouch(-1); }}
       onKeyDown={event => {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault();
-          if (!event.repeat) { if (photo.state.phase !== 'ready') prepare(); else photo.down(-1); }
+          if (!event.repeat) {
+            const box = canvasRef.current?.getBoundingClientRect();
+            if (box) beginTouch(-1, box.left + box.width / 2, box.top + box.height / 2);
+            if (photo.state.phase !== 'ready') prepare(); else photo.down(-1);
+          }
         }
         const directions: Record<string, Tilt> = { ArrowLeft: { x: -.13, y: 0 }, ArrowRight: { x: .13, y: 0 }, ArrowUp: { x: 0, y: -.13 }, ArrowDown: { x: 0, y: .13 } };
         const direction = directions[event.key];
         if (direction && sensor.phase !== 'active') { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
-        if (event.key === 'Escape') { photo.cancel(); device.current?.stop(); release(); }
+        if (event.key === 'Escape') { photo.cancel(); cancelTouch(); device.current?.stop(); updateTilt({ x: 0, y: 0 }); }
       }}>
       <span className="fluid-window" data-rim-mode="curved"><canvas ref={canvasRef} className="fluid-canvas" aria-label="Živá simulace světlé a tmavé kapaliny" /></span>
       <PortraitRing progress={photo.progress} flash={flash} />

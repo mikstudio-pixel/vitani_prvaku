@@ -19,7 +19,7 @@ export function registerPrototypeTools(setTilt: (value: Tilt) => void, reset: ()
   };
   register({
     name: 'set_tray_tilt',
-    description: 'Set the same virtual tray tilt as dragging directly on the bowl. X is right and Y is down. Zero on both axes levels the tray.',
+    description: 'Set virtual tray tilt like the arrow keys. X is right and Y is down. Zero on both axes levels the tray.',
     inputSchema: { type: 'object', properties: { x: { type: 'number', minimum: -1, maximum: 1 }, y: { type: 'number', minimum: -1, maximum: 1 } }, required: ['x', 'y'], additionalProperties: false },
     annotations: { readOnlyHint: false, untrustedContentHint: false },
     async execute(input) {

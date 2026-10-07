@@ -22,6 +22,12 @@ for camera and iPad motion permission. After granting permission, hold again
 for one second. HTTPS is required. Camera permission comes from the browser;
 there are no app buttons surrounding the bowl.
 
+Touch bends the simulated gravity toward the finger: a smooth local potential
+well draws surrounding liquid into that point. It follows dragging, ramps up
+while touching and fades after release. Multiple fingers cancel the well. Its
+force acts on both surface waves and material currents; the fluid is transported
+rather than painted or deleted. Capture releases the well during the flashes.
+
 One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
 Once full, the ring flashes twice. The square mirrored camera frame is averaged
@@ -34,7 +40,7 @@ The next visitor can then start automatically. No image overlay is used.
 Frames and masks remain in device memory; nothing is uploaded, saved or sent to
 face recognition. Completing the portrait clears its GPU mask. Reset and page exit clear the active image; hiding/leaving the page also stops
 the camera. Tap the bowl again after returning to prepare the camera. R resets
-immediately. Space/Enter can be held for capture; mouse dragging and arrow keys
+immediately. Space/Enter can be held for capture; mouse dragging moves the gravity well and arrow keys
 control tilt, while the iPad uses its gyroscope. Provide even lighting and test
 actual Safari permission, framing and performance on the event iPad.
 
@@ -72,3 +78,6 @@ camera, never hardware. It exercises cancellation, capture, the flash/reveal
 sequence, reset and consecutive visitors. `/tests/browser-portrait-fluid.html`
 exercises the actual GPU mask, gradual gathering, dissolve and reset.
 Neither fixture is included in the Pages build.
+
+`/tests/browser-touch-gravity.html` is a local GPU fixture for inward surface and
+material currents, release fade, edge coordinates and reset, without a camera.
