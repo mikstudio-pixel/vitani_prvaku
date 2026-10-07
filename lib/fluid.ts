@@ -125,6 +125,26 @@ const SOURCES = {
   ...TELEMETRY_SOURCES,
   ambientFlow: AMBIENT_FLOW,
 
+  pigmentStep: `uniform sampler2D pigment;uniform sampler2D velocity;uniform float dt;uniform float hue;uniform bool depositing;uniform bool transporting;
+void main(){
+ if(!wet(uv)){fragColor=vec4(0);return;}
+ vec2 p=uv;
+ if(transporting){
+  vec2 flow=sampleLinear(velocity,uv).xy;
+  p=wall(uv-sampleLinear(velocity,wall(uv-flow*dt*0.5)).xy*dt);
+ }
+ vec4 center=sampleLinear(pigment,p);
+ vec4 neighbors=(sampleLinear(pigment,wall(p+vec2(texel.x,0)))+sampleLinear(pigment,wall(p-vec2(texel.x,0)))
+  +sampleLinear(pigment,wall(p+vec2(0,texel.y)))+sampleLinear(pigment,wall(p-vec2(0,texel.y))))*0.25;
+ // RGB stores premultiplied pigment; alpha carries its concentration.
+ vec4 color=mix(center,neighbors,transporting?1.0-exp(-dt*3.0):0.0)*exp(-dt/2.2);
+ vec2 d=uv-touchPoint;
+ float deposit=depositing?exp(-dot(d,d)/0.0064):0.0;
+ vec3 rainbow=0.5+0.5*cos(6.2831853*(hue+vec3(0.0,0.33,0.67)));
+ color=mix(color,vec4(rainbow,1.0),1.0-exp(-deposit*dt*9.0));
+ fragColor=clamp(color,0.0,1.0);
+}`,
+
   crestResponse: `uniform sampler2D previous;uniform sampler2D totals;uniform float stirring;uniform float dt;
 void main(){
  vec4 sum=texelFetch(totals,ivec2(0),0);float area=max(sum.b,0.00001);
@@ -361,6 +381,7 @@ void main(){
  fragColor=vec4(0.5+d*min(1.0,contact/max(r,0.00001)),state.zw*ratio);
 }`,
   display: `uniform sampler2D dye;uniform sampler2D surface;uniform sampler2D features;uniform vec2 tilt;
+uniform sampler2D touchPigment;uniform bool pigmentVisible;
 uniform sampler2D crestState;uniform bool automaticCrests;
 uniform bool crestsEnabled;uniform bool contoursEnabled;uniform bool heightEnabled;uniform bool gridEnabled;uniform bool dotsEnabled;uniform bool flowEnabled;
 float phaseAt(vec2 p){return clamp(sampleBowl(dye,p).r,0.0,1.0);}
@@ -384,6 +405,12 @@ void main(){
  // make both phases wet, without floating sprites, static noise or film masks.
  vec3 normal=normalize(vec3(-slope*1.35-gradient*0.004-d*0.28+tilt*0.06,1.0));
  vec3 col=mix(vec3(0.90),vec3(0.045),dark);
+ if(pigmentVisible){
+  vec4 pigment=sampleLinear(touchPigment,wall(uv));
+  vec3 bodyColor=pigment.rgb/max(pigment.a,0.00001);
+  // Tint the material before lighting, preserving the two phases and highlights.
+  col=mix(col,bodyColor*mix(0.90,0.24,dark),pigment.a);
+ }
  vec3 light=normalize(vec3(-0.5,0.65,1.1));
  col*=0.76+0.24*max(dot(normal,light),0.0);
  col*=1.0-elevation*0.6;
@@ -470,6 +497,7 @@ export class FluidBowl {
   private targets: Target[] = [];
   private velocity: Pair;
   private dye: Pair;
+  private touchPigment: Pair;
   private portraitPattern: Target;
   private portraitOriginal: Target;
   private portraitElapsed = -1;
@@ -607,6 +635,7 @@ export class FluidBowl {
       }
       this.velocity = this.pair(this.simSize);
       this.dye = this.pair(this.dyeSize, true);
+      this.touchPigment = this.pair(this.simSize, true);
       this.portraitPattern = this.target(PORTRAIT_SIZE, true, 'r');
       this.portraitOriginal = this.target(this.dyeSize, true);
       this.qrPattern = this.target(QR_SIZE, true, 'r');
@@ -842,7 +871,7 @@ export class FluidBowl {
     this.boundaryRadius = value === 'hybrid' || value === 'curved' ? VISIBLE_RADIUS : OUTER_RADIUS;
     if (previousRadius === this.boundaryRadius && previousCurved === (value === 'curved')) return;
     // Carry the current portion into the new domain instead of reseeding it.
-    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye])) {
+    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye, this.touchPigment])) {
       this.draw('reframe', pair.write, { source: pair.read, previousRadius, isVelocity: pair === this.velocity || pair === this.mixingVelocity, isDye: pair === this.dye });
       this.swap(pair);
     }
@@ -869,6 +898,10 @@ export class FluidBowl {
     if (this.noiseSeed === this.separationSeed) return;
     this.draw('phaseNoise', this.phaseNoise, { separationSeed: this.separationSeed });
     this.noiseSeed = this.separationSeed;
+  }
+  private stepPigment(dt: number, depositing: boolean) {
+    this.draw('pigmentStep', this.touchPigment.write, { pigment: this.touchPigment.read, velocity: this.materialVelocity(), dt, hue: this.elapsed * .35, transporting: !this.physicsPaused, depositing });
+    this.swap(this.touchPigment);
   }
   private stepMaterial(dt: number) {
     const visitor = this.portraitActive;
@@ -1078,7 +1111,7 @@ export class FluidBowl {
       }
       this.draw('features', this.features, { surface: featureSurface, velocity, flowMode: flowEnabled, crestMode });
     }
-    this.draw('display', null, { dye, surface, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
+    this.draw('display', null, { dye, surface, touchPigment: this.touchPigment.read, pigmentVisible: !this.portraitActive && !this.easterEggActive && this.qrElapsed < 0, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
     if (flowEnabled) this.draw('flowDisplay', null, { particleState: this.particles.read, viewportSize: this.canvas.width });
   }
   setPortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
@@ -1217,6 +1250,7 @@ export class FluidBowl {
       }
     }
     else if (this.easterEggActive || this.portraitActive) this.stepMaterial(dt);
+    this.stepPigment(dt, attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive);
     this.reportFrame(time);
     this.reportTelemetry(time);
     this.render();
@@ -1239,11 +1273,12 @@ export class FluidBowl {
       const waves = () => this.advanceFlow(this.velocity, this.surface, force, dt, false);
       const current = () => this.advanceFlow(this.mixingVelocity, this.mixingSurface, force, dt, true);
       const material = () => this.stepMaterial(dt);
+      const pigment = () => this.stepPigment(dt, false);
       const display = () => this.render();
-      const frame = () => { waves(); current(); material(); display(); };
+      const frame = () => { waves(); current(); material(); pigment(); display(); };
       for (let i = 0; i < 12; i++) frame();
       const timings: Record<string, number> = {};
-      for (const [name, run] of Object.entries({ waves, current, material, display, frame })) {
+      for (const [name, run] of Object.entries({ waves, current, material, pigment, display, frame })) {
         const samples = [];
         for (let batch = 0; batch < 6; batch++) {
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
