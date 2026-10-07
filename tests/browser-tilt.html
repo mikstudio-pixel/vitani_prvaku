@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="cs" class="dark">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Browser missing-yaw regression</title></head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { InstallationApp } from '../web/installation-app.tsx';
+      import '../app/globals.css';
+      createRoot(document.getElementById('root')).render(React.createElement(InstallationApp));
+      // Local QA only: send real orientation events with tilt but no compass yaw.
+      const started = performance.now();
+      const timer = setInterval(() => {
+        const t = (performance.now() - started) / 1000;
+        if (t > 5) { clearInterval(timer); return; }
+        window.dispatchEvent(Object.assign(new Event('deviceorientation'), {
+          alpha: null, beta: 20 * Math.sin(t * 4), gamma: 20 * Math.cos(t * 4),
+        }));
+      }, 50);
+    </script>
+  </body>
+</html>

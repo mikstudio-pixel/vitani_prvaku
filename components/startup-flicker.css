@@ -1,0 +1,42 @@
+/* Independent tube ignitions finish on the sides before the center caption. */
+@keyframes startup-tube {
+  0%, 12%, 32%, 58% { opacity: 0; }
+  7%, 25% { opacity: .75; }
+  43% { opacity: .25; }
+  70%, 100% { opacity: 1; }
+  78% { opacity: .45; }
+  84% { opacity: .9; }
+}
+.tray-artwork[data-wake-stage='panels'] [data-startup-flicker] {
+  animation: startup-tube .58s steps(1, end) both;
+  animation-delay: var(--startup-delay, 0s);
+}
+.tray-artwork[data-wake-stage='panels'] .right-display[data-stage='panels'] .scenario-readings > *,
+.tray-artwork[data-wake-stage='panels'] .right-display[data-stage='panels'] .gyroscope-model {
+  animation: startup-tube .58s steps(1, end) .2s both;
+}
+.mixing-prompt[data-prompt='ready'] > img { animation: startup-tube .58s steps(1, end) .9s both; }
+@media (prefers-reduced-motion: reduce) {
+  .tray-artwork[data-wake-stage='panels'] [data-startup-flicker],
+  .tray-artwork[data-wake-stage='panels'] .right-display[data-stage='panels'] .scenario-readings > *,
+  .tray-artwork[data-wake-stage='panels'] .right-display[data-stage='panels'] .gyroscope-model,
+  .mixing-prompt[data-prompt='ready'] > img { animation: none; }
+}
+
+/* Replay the same tube ignition backwards when the successful mission ends. */
+.right-display [data-phase-exit] {
+  animation: startup-tube .58s steps(1, end) reverse both;
+  pointer-events: none;
+}
+.right-display [data-phase-exit='gyroscope'] { animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) {
+  .right-display [data-phase-exit] { animation: none; opacity: 0; }
+}
+
+.right-display [data-phase-entry] {
+  animation: startup-tube .58s steps(1, end) both;
+  animation-delay: var(--startup-delay, 0s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .right-display [data-phase-entry] { animation: none; }
+}
