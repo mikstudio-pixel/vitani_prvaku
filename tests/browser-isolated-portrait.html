@@ -1,0 +1,22 @@
+<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Izolace portrétu — veřejný testovací snímek</title><style>body{background:#181818;color:white;font:14px system-ui}canvas{width:300px;height:300px;object-fit:contain;background:repeating-conic-gradient(#555 0% 25%,#333 0% 50%) 50%/20px 20px}button{padding:10px}</style></head><body><button id="test">Izolovat testovací portrét</button> <output id="result">Připraveno; veřejná testovací fotografie MediaPipe.</output><p><canvas id="before"></canvas> <canvas id="after"></canvas> <canvas id="mask"></canvas></p><script type="module">
+import { PortraitProcessor } from '../lib/portrait-processor.ts';
+import { portraitPattern } from '../lib/portrait-material.ts';
+const input = new PortraitProcessor();
+document.querySelector('#test').onclick = async () => {
+ const output=document.querySelector('#result'); output.textContent='Zpracovávám…';
+ try {
+  const photo=new Image(); photo.src='/outputs/portrait-test.jpg'; await photo.decode();
+  const before=document.querySelector('#before'); before.width=photo.width; before.height=photo.height;
+  before.getContext('2d').drawImage(photo,0,0);
+  const started=performance.now(); const image=await input.process(before.getContext('2d').getImageData(0,0,photo.width,photo.height));
+  const after=document.querySelector('#after'); after.width=image.width; after.height=image.height; after.getContext('2d').putImageData(image,0,0);
+  let background=0,subject=0; for(let i=3;i<image.data.length;i+=4){background+=image.data[i]===0;subject+=image.data[i]>240;}
+  if(background<image.width*image.height*.1||subject<image.width*image.height*.2)throw new Error('Maska nerozlišuje dostatek pozadí a člověka');
+  const pattern=portraitPattern(image), size=Math.sqrt(pattern.length), mask=document.querySelector('#mask');mask.width=mask.height=size;
+  const pixels=mask.getContext('2d').createImageData(size,size);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){const i=(y*size+x)*4;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=255*(1-pattern[(size-1-y)*size+x]);pixels.data[i+3]=255;}
+  mask.getContext('2d').putImageData(pixels,0,0);
+  output.textContent=`PASS: ${(performance.now()-started).toFixed(0)} ms; průhledné pozadí ${(100*background/(512*512)).toFixed(1)} %; člověk ${(100*subject/(512*512)).toFixed(1)} %; maska ${size} × ${size}`;
+ }catch(error){output.textContent=`FAIL: ${error.message}`;console.error(error);}
+};
+</script></body></html>

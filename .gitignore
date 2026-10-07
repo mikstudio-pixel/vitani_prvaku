@@ -8,3 +8,4 @@ output/
 .openai/
 .wrangler/
 *.pem
+public/portrait/runtime/

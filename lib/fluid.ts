@@ -8,9 +8,9 @@ import { circleBoundary, circleMergeGroups } from './circle-boundary';
 import { EMULSION_SOURCES, separationReadiness } from './emulsion';
 import { AMBIENT_FLOW } from './ambient-flow';
 import { QR_SOURCES } from './qr-reveal';
-import { portraitPattern } from './portrait-material';
+import { portraitPattern, PORTRAIT_SIZE } from './portrait-material';
 import { QR_SIZE, QR_EXTENT, QR_REVEAL_SECONDS, qrTextureData } from './qr-pattern';
-import { BOB_SIZE, BOB_EXTENT, bobTextureData } from './bob-pattern';
+import { BOB_SIZE, BOB_EXTENT, BOB_BACKGROUND_EXTENT, bobTextureData } from './bob-pattern';
 import { BobGesture, BOB_SECONDS, BOB_TIMING } from './bob-easter-egg';
 import { DEFAULT_QR_ANIMATION, normalizeQrAnimation, type QrAnimationSettings } from './qr-animation-settings';
 import { TELEMETRY_SOURCES, decodeTelemetry, type FluidTelemetry, type TelemetryContext } from './fluid-telemetry';
@@ -607,7 +607,7 @@ export class FluidBowl {
       }
       this.velocity = this.pair(this.simSize);
       this.dye = this.pair(this.dyeSize, true);
-      this.portraitPattern = this.target(BOB_SIZE, true, 'r');
+      this.portraitPattern = this.target(PORTRAIT_SIZE, true, 'r');
       this.portraitOriginal = this.target(this.dyeSize, true);
       this.qrPattern = this.target(QR_SIZE, true, 'r');
       if (options.easterEgg) {
@@ -880,7 +880,7 @@ export class FluidBowl {
       if (visitor) this.portraitElapsed = elapsed; else this.bobElapsed = elapsed;
       const dissolveAt = BOB_TIMING.reveal + BOB_TIMING.hold;
       if (elapsed <= dissolveAt) {
-        this.gatherPattern(dt, dt, pattern, Math.min(1, elapsed / BOB_TIMING.reveal), true);
+        this.gatherPattern(dt, dt, pattern, Math.min(1, elapsed / BOB_TIMING.reveal), true, visitor ? .92 : BOB_BACKGROUND_EXTENT);
       } else {
         // Return to the saved liquid field smoothly, conserving its phase ratio.
         const ease = (time: number) => { const t = Math.max(0, Math.min(1, (time - dissolveAt) / BOB_TIMING.dissolve)); return t * t * (3 - 2 * t); };
@@ -961,9 +961,9 @@ export class FluidBowl {
     this.swap(this.dye);
     this.stepCrests(dt);
   }
-  private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false) {
+  private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false, backgroundExtent = BOB_BACKGROUND_EXTENT) {
     this.prepareMaterialNoise();
-    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait });
+    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait, backgroundExtent });
     const steps = Math.ceil(dt * 240);
     for (let i = 0; i < steps; i++) {
       this.draw('qrChemical', this.phaseChemical, { phase: this.dye.read, guide: this.phaseForward, progress });
@@ -1090,7 +1090,7 @@ export class FluidBowl {
     this.draw('patternRestore', this.portraitOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.portraitPattern.texture);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, BOB_SIZE, BOB_SIZE, gl.RED, gl.FLOAT, values);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, PORTRAIT_SIZE, PORTRAIT_SIZE, gl.RED, gl.FLOAT, values);
     this.portraitElapsed = 0;
   }
 

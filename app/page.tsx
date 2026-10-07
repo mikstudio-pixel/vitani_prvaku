@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FluidBowl } from '@/lib/fluid';
+import { PortraitProcessor } from '@/lib/portrait-processor';
+import { PortraitPreview } from '@/components/portrait-preview';
 import { APP_VERSION } from '@/lib/app-version';
 import { clampTilt, type Tilt } from '@/lib/tilt';
 import { registerPrototypeTools } from '@/lib/prototype-tools';
@@ -10,14 +12,18 @@ import { usePortraitCamera } from '@/components/use-portrait-camera';
 import { PortraitRing } from '@/components/portrait-ring';
 
 const FLASH_SECONDS = .8;
-type Phase = 'idle' | 'flash' | 'revealing' | 'holding' | 'dissolving';
+type Phase = 'idle' | 'processing' | 'flash' | 'revealing' | 'holding' | 'dissolving';
 
 export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bowlRef = useRef<HTMLButtonElement>(null);
   const engine = useRef<FluidBowl | null>(null);
   const device = useRef<DeviceTilt | null>(null);
-  const pending = useRef<{ image: ImageData; at: number } | null>(null);
+  const pending = useRef<{ image: ImageData | null; at: number | null } | null>(null);
+  const processor = useRef<PortraitProcessor | null>(null);
+  const [captured, setCaptured] = useState<ImageData | null>(null);
+  const [isolated, setIsolated] = useState<ImageData | null>(null);
+  const [portraitStatus, setPortraitStatus] = useState('');
   const cancelHold = useRef(() => {});
   const touchPointer = useRef<number | null>(null);
   const contacts = useRef(new Set<number>());
@@ -37,14 +43,30 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const cancelTouch = useCallback(() => { contacts.current.clear(); stopTouch(); }, [stopTouch]);
   const reset = useCallback(() => {
     cancelHold.current(); cancelTouch(); pending.current = null;
-    setPhase('idle'); setFlash(null); engine.current?.reset();
+    setPhase('idle'); setFlash(null); setCaptured(null); setIsolated(null); setPortraitStatus(''); engine.current?.reset();
   }, [cancelTouch]);
   const capture = useCallback((image: ImageData) => {
     if (!engine.current?.running || engine.current.portraitActive || pending.current) return;
     stopTouch();
-    pending.current = { image, at: performance.now() }; setPhase('flash'); setFlash(0);
+    const frame = { image: null as ImageData | null, at: null as number | null };
+    pending.current = frame; setPhase('processing'); setFlash(null);
+    setCaptured(image); setIsolated(null); setPortraitStatus('Izoluji portrét…');
+    void processor.current?.process(image).then(result => {
+      if (pending.current !== frame || !engine.current?.running || document.hidden) return;
+      frame.image = result; frame.at = performance.now();
+      setIsolated(result); setPortraitStatus(''); setPhase('flash'); setFlash(0);
+    }).catch(cause => {
+      if (pending.current !== frame) return;
+      pending.current = null; setPhase('idle'); setFlash(null);
+      setPortraitStatus(cause instanceof Error ? cause.message : 'Portrét nelze izolovat.');
+    });
   }, [stopTouch]);
   const photo = usePortraitCamera(photoEnabled && ready && !paused && !error && phase === 'idle', capture);
+  useEffect(() => {
+    const input = new PortraitProcessor(); processor.current = input;
+    void input.warmup().catch(() => {});
+    return () => { processor.current = null; input.dispose(); };
+  }, []);
   useEffect(() => { cancelHold.current = photo.cancel; }, [photo.cancel]);
   const prepare = () => {
     photo.prepare();
@@ -70,7 +92,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     };
     const blur = () => {
       cancelHold.current(); cancelTouch(); updateTilt({ x: 0, y: 0 });
-      if (pending.current) { pending.current = null; setPhase('idle'); setFlash(null); }
+      if (pending.current) { pending.current = null; setPhase('idle'); setFlash(null); setPortraitStatus('Zpracování zrušeno. Podržte znovu.'); }
     };
     try {
       const params = new URLSearchParams(location.search);
@@ -99,7 +121,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     let animation = 0;
     const tick = (now: number) => {
       const frame = pending.current;
-      if (frame) {
+      if (frame?.image && frame.at !== null) {
         const elapsed = (now - frame.at) / 1000;
         if (elapsed < FLASH_SECONDS) setFlash(elapsed);
         else {
@@ -108,7 +130,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
           catch (cause) { setError(cause instanceof Error ? cause.message : 'Fotografii se nepodařilo zobrazit.'); }
         }
       }
-      setPhase(pending.current ? 'flash' : engine.current?.portraitPhase ?? 'idle');
+      setPhase(pending.current ? pending.current.at === null ? 'processing' : 'flash' : engine.current?.portraitPhase ?? 'idle');
       animation = requestAnimationFrame(tick);
     };
     animation = requestAnimationFrame(tick);
@@ -139,6 +161,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     <output className="app-version" title={APP_VERSION} aria-label={`Verze aplikace ${APP_VERSION}`}>
       v {APP_VERSION === 'development' ? 'vývoj' : APP_VERSION.slice(0, 7)}
     </output>
+    <PortraitPreview captured={captured} isolated={isolated} status={portraitStatus} />
     <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
     <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."
@@ -174,7 +197,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         if (event.key === 'Escape') { photo.cancel(); cancelTouch(); device.current?.stop(); updateTilt({ x: 0, y: 0 }); }
       }}>
       <span className="fluid-window" data-rim-mode="curved"><canvas ref={canvasRef} className="fluid-canvas" aria-label="Živá simulace světlé a tmavé kapaliny" /></span>
-      <PortraitRing progress={photo.progress} flash={flash} />
+      <PortraitRing progress={phase === 'processing' ? 1 : photo.progress} flash={flash} />
     </button>
   </main>;
 }

@@ -1,9 +1,7 @@
-import { BOB_BACKGROUND_EXTENT } from './bob-pattern';
-
 // The guide is a chemical potential, not a concentration image. Every update
 // transfers existing dark material between cells, with equal/opposite fluxes.
 export const QR_SOURCES = {
-  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;
+  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;uniform float backgroundExtent;
 void main(){
  vec2 p=(uv-0.5)/extent+0.5;
  vec2 n=vec2(textureSize(qr,0)),cell=p*n;
@@ -24,7 +22,7 @@ void main(){
  ink=mix(ink,exact,smoothstep(0.80,1.0,progress));
  // The larger code emerges in an organic circular body, without a square frame.
  float noise=texture(noiseField,uv).r;
- float outside=portrait?smoothstep(0.47,0.50,length(uv-0.5)/${BOB_BACKGROUND_EXTENT}+noise*0.01):smoothstep(0.37,0.42,length(uv-0.5)+noise*0.018);
+ float outside=portrait?smoothstep(0.47,0.50,length(uv-0.5)/backgroundExtent+noise*0.01):smoothstep(0.37,0.42,length(uv-0.5)+noise*0.018);
  float contrast=mix(1.0,1.8,smoothstep(0.25,0.95,progress));
  float goal=mix(0.5+(ink-0.5)*contrast,portrait?-0.4:1.4,outside);
  fragColor=vec4(goal,0,0,1);

@@ -1,16 +1,24 @@
 <!doctype html>
 <html lang="cs" class="dark">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) aside {visibility:hidden}</style></head>
-<body><div id="root"></div><aside style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <output id="result">Umělá kamera; nejprve klepněte na mísu.</output></aside>
+<body><div id="root"></div><aside id="fixture-controls" style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <button id="freeze">Vyfotit a zastavit portrét</button> <button id="no-face">Záběr bez člověka</button> <output id="result">Umělá kamera; nejprve klepněte na mísu.</output></aside>
 <script type="module">
   import React from 'react';
   import { createRoot } from 'react-dom/client';
   import { InstallationApp } from '../web/installation-app.tsx';
   import '../app/globals.css';
-  import { paintPortrait } from './synthetic-portrait.js';
+  import { FluidBowl } from '../lib/fluid.ts';
   // This local fixture cannot request or access a hardware camera.
-  const source = document.createElement('canvas'); source.width = source.height = 512;
-  const paint = () => { paintPortrait(source); requestAnimationFrame(paint); }; paint();
+  const picture = new Image(); picture.src = '/outputs/portrait-test.jpg'; await picture.decode();
+  const source = document.createElement('canvas'); source.width = picture.width; source.height = picture.height;
+  let hasFace = true;
+  const paint = () => {
+    const context = source.getContext('2d'); context.fillStyle = '#2e3750'; context.fillRect(0,0,source.width,source.height);
+    if (hasFace) context.drawImage(picture,0,0); requestAnimationFrame(paint);
+  }; paint();
+  let fluid;
+  const setPortrait = FluidBowl.prototype.setPortrait;
+  FluidBowl.prototype.setPortrait = function(image) { fluid = this; return setPortrait.call(this,image); };
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
     getUserMedia: async () => {
       if (new URLSearchParams(location.search).has('deny')) throw new DOMException('Synthetic denial', 'NotAllowedError');
@@ -23,6 +31,31 @@
   const capture = HTMLElement.prototype.setPointerCapture;
   HTMLElement.prototype.setPointerCapture = function(id) { if (id < 9000) Reflect.apply(capture, this, [id]); };
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const until = async (condition, timeout = 30000) => {
+    const deadline = performance.now() + timeout;
+    while (!condition()) { if (performance.now() > deadline) throw new Error('Vypršel čas zpracování'); await wait(30); }
+  };
+  document.querySelector('#freeze').onclick = async () => {
+    const result = document.querySelector('#result'), root = document.querySelector('main'), bowl = document.querySelector('.bowl');
+    try {
+      if (root.dataset.camera !== 'ready') throw new Error('Nejprve klepněte na mísu');
+      bowl.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:9010,pointerType:'touch',clientX:700,clientY:400}));
+      await wait(1100); bowl.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:9010,pointerType:'touch'}));
+      await until(() => root.dataset.portrait === 'holding'); fluid.setPaused(true);
+      document.querySelector('#fixture-controls').style.visibility='visible';
+      result.textContent='PASS: skutečná izolace → bliknutí → vynoření v kapalině; pozastaveno pro náhled';
+    } catch(error) { result.textContent=`FAIL: ${error.message}`; }
+  };
+  document.querySelector('#no-face').onclick = async () => {
+    const result = document.querySelector('#result'), bowl = document.querySelector('.bowl'); hasFace = false;
+    try {
+      bowl.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:9011,pointerType:'touch',clientX:700,clientY:400}));
+      await wait(1100); bowl.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:9011,pointerType:'touch'}));
+      await until(() => document.querySelector('.portrait-preview output')?.textContent.includes('Obličej nenalezen'));
+      if (document.querySelector('main').dataset.portrait !== 'idle') throw new Error('Neúspěšný záběr zablokoval aplikaci');
+      result.textContent='PASS: záběr bez obličeje odmítnut, žádná původní fotografie v kapalině; další návštěvník může přijít';
+    } catch(error) { result.textContent=`FAIL: ${error.message}`; } finally { hasFace = true; }
+  };
   const assert = (value, message) => { if (!value) throw new Error(message); };
   document.getElementById('test').onclick = async () => {
     const result = document.getElementById('result'), root = document.querySelector('main'), bowl = document.querySelector('.bowl');
@@ -36,6 +69,7 @@
       pointer('pointerdown', 9003); pointer('pointerdown', 9004); await wait(1200); pointer('pointerup', 9003); pointer('pointerup', 9004);
       assert(root.dataset.portrait === 'idle', 'Two fingers must cancel');
       pointer('pointerdown', 9005); await wait(1100); pointer('pointerup', 9005);
+      await until(() => root.dataset.portrait === 'flash');
       assert(root.dataset.portrait === 'flash', 'A one-second hold must take a photograph');
       result.textContent = 'První portrét vyfotografován. Ověřuji dalšího návštěvníka…';
       await wait(4000);
@@ -44,6 +78,7 @@
       assert(root.dataset.portrait === 'idle', 'Reset must wait for another photograph');
       assert(root.dataset.camera === 'ready', 'Camera must remain warm between visitors');
       pointer('pointerdown', 9006); await wait(1100); pointer('pointerup', 9006);
+      await until(() => root.dataset.portrait === 'flash');
       assert(root.dataset.portrait === 'flash', 'Second visitor must get a new photograph');
       result.textContent = 'PASS: short touch, drag, multiple fingers, one-second capture, reset, second visitor';
     } catch (error) { result.textContent = `FAIL: ${error.message}`; console.error(error); }

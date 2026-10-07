@@ -53,16 +53,18 @@ export class PortraitCamera {
     const track = this.stream?.getVideoTracks()[0];
     return this.video.readyState >= 2 && this.video.videoWidth > 0 && this.video.videoHeight > 0 && track?.readyState === 'live' && track.enabled && !track.muted;
   }
-  capture(size = 512): ImageData {
+  capture(size = 768): ImageData {
     if (this.state.phase !== 'ready' || !this.frameReady()) throw new Error('Kamera není připravená. Zkuste ji znovu připravit.');
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+    const width = this.video.videoWidth, height = this.video.videoHeight;
+    const scale = size / Math.max(width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) throw new Error('Fotografii nelze zpracovat.');
-    const width = this.video.videoWidth, height = this.video.videoHeight, crop = Math.min(width, height);
-    // Center crop and selfie mirroring. Safari supplies the upright video frame.
-    context.translate(size, 0); context.scale(-1, 1);
-    context.drawImage(this.video, (width - crop) / 2, (height - crop) / 2, crop, crop, 0, 0, size, size);
-    return context.getImageData(0, 0, size, size);
+    // Keep the complete frame for face detection, with upright selfie mirroring.
+    context.translate(canvas.width, 0); context.scale(-1, 1);
+    context.drawImage(this.video, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
+    return context.getImageData(0, 0, canvas.width, canvas.height);
   }
   private fail(message: string) { this.stop(); this.publish({ phase: 'error', message }); }
   stop() {

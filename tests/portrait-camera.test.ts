@@ -38,13 +38,13 @@ void test('permission denial can be retried and track interruption resets readin
     f.track.dispatchEvent(new Event('ended')); assert.equal(f.states.at(-1)?.phase, 'error'); assert.equal(f.video.srcObject, null);
   } finally { f.restore(); }
 });
-void test('photograph is center cropped, selfie mirrored and returned only as pixels', async () => {
+void test('photograph preserves the full frame, selfie mirrored and returned only as pixels', async () => {
   const f = fixture(); const calls: unknown[][] = [];
   const original = Object.getOwnPropertyDescriptor(globalThis, 'document');
   const image = { data: new Uint8ClampedArray(4), width: 1, height: 1 };
   Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => ({ getContext: () => ({ translate: (...args: unknown[]) => calls.push(['translate', ...args]), scale: (...args: unknown[]) => calls.push(['scale', ...args]), drawImage: (...args: unknown[]) => calls.push(['draw', ...args.slice(1)]), getImageData: () => image }) }) } });
   try {
     await f.camera.prepare(); assert.equal(f.camera.capture(), image);
-    assert.deepEqual(calls, [['translate', 512, 0], ['scale', -1, 1], ['draw', 280, 0, 720, 720, 0, 0, 512, 512]]);
+    assert.deepEqual(calls, [['translate', 768, 0], ['scale', -1, 1], ['draw', 0, 0, 1280, 720, 0, 0, 768, 432]]);
   } finally { f.restore(); if (original) Object.defineProperty(globalThis, 'document', original); else Reflect.deleteProperty(globalThis, 'document'); }
 });
