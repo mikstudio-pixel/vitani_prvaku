@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { LoaderCircle, X } from 'lucide-react';
 import { deletePortrait, deviceAccess, portraitBackend, type PortraitRow } from '@/lib/portrait-backend';
 import { APP_VERSION } from '@/lib/app-version';
 import { galleryLayout } from '@/lib/gallery-layout';
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: boolean; onDeleted: (id: string) => void }) {
+function Portrait({ row, canDelete, onDeleted, style }: { row: PortraitRow; canDelete: boolean; onDeleted: (id: string) => void; style: CSSProperties }) {
   const [url, setUrl] = useState(''), [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState('');
@@ -24,7 +24,7 @@ function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: 
     catch { setDeleteError('Smazání selhalo. Zkus to znovu.'); }
     finally { setDeleting(false); }
   };
-  return <figure className="gallery-portrait">{url ? <img src={url} alt="Portrét návštěvníka" /> : failed ?
+  return <figure className="gallery-portrait" style={style}>{url ? <img src={url} alt="Portrét návštěvníka" /> : failed ?
     <button className="gallery-retry" onClick={() => setAttempt(value => value + 1)}>Načíst znovu</button> : <span aria-label="Načítám portrét" />}
     {canDelete && <button className="gallery-delete" aria-label="Smazat portrét" title={deleteError || 'Smazat portrét'} disabled={deleting} onClick={() => { void remove(); }}>
       {deleting ? <LoaderCircle size={16} className="gallery-spinner" /> : <X size={16} />}
@@ -95,8 +95,8 @@ export function Gallery() {
     return () => { active = false; subscription.data.subscription.unsubscribe(); if (timer) clearInterval(timer); if (channel) void portraitBackend.removeChannel(channel); };
   }, [onDeleted]);
   return <main className="portrait-gallery" data-version={APP_VERSION}>
-    <div ref={grid} className="gallery-grid" style={{ gridTemplateColumns: `repeat(${layout.columns}, ${layout.size}px)`, gridTemplateRows: `repeat(${layout.rows}, ${layout.size}px)`, gap: layout.gap }}>
-      {rows.map(row => <Portrait key={row.id} row={row} canDelete={canDelete} onDeleted={onDeleted} />)}
+    <div ref={grid} className="gallery-grid" style={{ gridTemplateColumns: `repeat(${layout.columns * 2}, ${Math.max(0, (layout.size - layout.gap) / 2)}px)`, gridTemplateRows: `repeat(${layout.rows}, ${layout.size}px)`, gap: layout.gap }}>
+      {rows.map((row, index) => <Portrait key={row.id} row={row} canDelete={canDelete} onDeleted={onDeleted} style={{ gridColumn: `${layout.positions[index].column} / span 2`, gridRow: layout.positions[index].row }} />)}
     </div>
     {!rows.length && <div className="gallery-empty"><p>{status || 'Čekám na první portrét…'}</p>{!authorized && <a href={`${base}/pripojeni/`}>Připojit zařízení</a>}</div>}
     {rows.length > 0 && status && <output className="gallery-status">{status}</output>}

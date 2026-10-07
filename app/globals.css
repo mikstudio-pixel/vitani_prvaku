@@ -70,7 +70,8 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .gallery-portrait { position: relative; container-type: inline-size; margin: 0; min-width: 0; min-height: 0; aspect-ratio: 1; border-radius: 50%; background: #262626; animation: portrait-arrive .7s ease-out; }
 .gallery-portrait img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; image-rendering: pixelated; }
 .gallery-retry { width: 100%; height: 100%; cursor: pointer; color: #aaa; font-size: min(12px, 12cqi); }
-.gallery-delete { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: min(28px, 35cqi); height: min(28px, 35cqi); padding: 0; border: 1px solid #777; border-radius: 50%; background: #171717e6; color: #eee; cursor: pointer; opacity: .55; }
+.gallery-delete { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: min(28px, 35cqi); height: min(28px, 35cqi); padding: 0; border: 1px solid #777; border-radius: 50%; background: #171717e6; color: #eee; cursor: pointer; opacity: 0; pointer-events: none; }
+.gallery-portrait:hover .gallery-delete, .gallery-portrait:focus-within .gallery-delete, .gallery-delete:disabled { opacity: .55; pointer-events: auto; }
 .gallery-delete:hover, .gallery-delete:focus-visible { opacity: 1; background: #a52727; }
 .gallery-delete svg { width: 60%; height: 60%; }
 .gallery-delete:disabled { cursor: wait; }
