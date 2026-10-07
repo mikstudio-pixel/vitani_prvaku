@@ -125,6 +125,21 @@ const SOURCES = {
   ...TELEMETRY_SOURCES,
   ambientFlow: AMBIENT_FLOW,
 
+  oilStep: `uniform sampler2D film;uniform sampler2D velocity;uniform float dt;uniform bool depositing;
+void main(){
+ if(!wet(uv)){fragColor=vec4(0);return;}
+ vec2 flow=sampleLinear(velocity,uv).xy;
+ vec2 p=wall(uv-sampleLinear(velocity,wall(uv-flow*dt*0.5)).xy*dt);
+ float center=sampleLinear(film,p).r;
+ float neighbors=(sampleLinear(film,wall(p+vec2(texel.x,0))).r+sampleLinear(film,wall(p-vec2(texel.x,0))).r
+  +sampleLinear(film,wall(p+vec2(0,texel.y))).r+sampleLinear(film,wall(p-vec2(0,texel.y))).r)*0.25;
+ float thickness=mix(center,neighbors,1.0-exp(-dt*3.0))*exp(-dt/2.2);
+ vec2 d=uv-touchPoint;
+ float deposit=depositing?exp(-dot(d,d)/0.0064):0.0;
+ thickness=1.0-(1.0-thickness)*exp(-deposit*dt*9.0);
+ fragColor=vec4(clamp(thickness,0.0,1.0),0,0,1);
+}`,
+
   crestResponse: `uniform sampler2D previous;uniform sampler2D totals;uniform float stirring;uniform float dt;
 void main(){
  vec4 sum=texelFetch(totals,ivec2(0),0);float area=max(sum.b,0.00001);
@@ -361,6 +376,7 @@ void main(){
  fragColor=vec4(0.5+d*min(1.0,contact/max(r,0.00001)),state.zw*ratio);
 }`,
   display: `uniform sampler2D dye;uniform sampler2D surface;uniform sampler2D features;uniform vec2 tilt;
+uniform sampler2D oilFilm;uniform bool oilVisible;
 uniform sampler2D crestState;uniform bool automaticCrests;
 uniform bool crestsEnabled;uniform bool contoursEnabled;uniform bool heightEnabled;uniform bool gridEnabled;uniform bool dotsEnabled;uniform bool flowEnabled;
 float phaseAt(vec2 p){return clamp(sampleBowl(dye,p).r,0.0,1.0);}
@@ -399,6 +415,14 @@ void main(){
  float interior=1.0-smoothstep(R-0.045,R,r);
  // Apply color layers before line work and crest light so every selected
  // effect remains visible, independent of the order of checkbox clicks.
+ if(oilVisible){
+  float film=sampleBowl(oilFilm,uv).r;
+  // Thin-film bands bend with thickness, material interfaces and surface light.
+  float optical=film*2.8+phase*0.32+dot(normal.xy,vec2(0.7,-0.5));
+  vec3 rainbow=0.5+0.5*cos(6.2831853*(optical+vec3(0.0,0.33,0.67)));
+  vec3 iridescence=rainbow*(0.48+col*0.55)+vec3(softbox*0.16+spec*0.12);
+  col=mix(col,iridescence,clamp(film*1.4,0.0,0.88)*interior);
+ }
  if(heightEnabled){
   float level=smoothstep(-0.045,0.045,elevation);
   vec3 low=mix(vec3(0.10,0.24,0.39),vec3(0.38,0.69,0.74),smoothstep(0.0,0.5,level));
@@ -470,6 +494,7 @@ export class FluidBowl {
   private targets: Target[] = [];
   private velocity: Pair;
   private dye: Pair;
+  private oilFilm: Pair;
   private portraitPattern: Target;
   private portraitOriginal: Target;
   private portraitElapsed = -1;
@@ -607,6 +632,7 @@ export class FluidBowl {
       }
       this.velocity = this.pair(this.simSize);
       this.dye = this.pair(this.dyeSize, true);
+      this.oilFilm = { read: this.target(this.simSize, true, 'r'), write: this.target(this.simSize, true, 'r') };
       this.portraitPattern = this.target(PORTRAIT_SIZE, true, 'r');
       this.portraitOriginal = this.target(this.dyeSize, true);
       this.qrPattern = this.target(QR_SIZE, true, 'r');
@@ -1078,7 +1104,7 @@ export class FluidBowl {
       }
       this.draw('features', this.features, { surface: featureSurface, velocity, flowMode: flowEnabled, crestMode });
     }
-    this.draw('display', null, { dye, surface, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
+    this.draw('display', null, { dye, surface, oilFilm: this.oilFilm.read, oilVisible: !this.portraitActive && !this.easterEggActive && this.qrElapsed < 0, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
     if (flowEnabled) this.draw('flowDisplay', null, { particleState: this.particles.read, viewportSize: this.canvas.width });
   }
   setPortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
@@ -1217,6 +1243,8 @@ export class FluidBowl {
       }
     }
     else if (this.easterEggActive || this.portraitActive) this.stepMaterial(dt);
+    this.draw('oilStep', this.oilFilm.write, { film: this.oilFilm.read, velocity: this.materialVelocity(), dt, depositing: attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive });
+    this.swap(this.oilFilm);
     this.reportFrame(time);
     this.reportTelemetry(time);
     this.render();

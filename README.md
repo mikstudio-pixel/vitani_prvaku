@@ -28,6 +28,12 @@ while touching and fades after release. Multiple fingers cancel the well. Its
 force acts on both surface waves and material currents; the fluid is transported
 rather than painted or deleted. Capture releases the well during the flashes.
 
+Touch also deposits a temporary iridescent oil film. Its rainbow bands follow
+the material current and bend with the liquid surface. Dragging leaves a colored
+trail that spreads gently and fades after release. The film is a separate scalar
+field; it does not change the liquid ingredients or portrait mask. Portraits
+remain monochrome, and reset clears the film.
+
 One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
 Once full, the ring flashes twice. The square mirrored camera frame is averaged
@@ -81,3 +87,7 @@ Neither fixture is included in the Pages build.
 
 `/tests/browser-touch-gravity.html` is a local GPU fixture for inward surface and
 material currents, release fade, edge coordinates and reset, without a camera.
+
+`/tests/browser-touch-oil.html` checks visible rainbow color, passive transport,
+bounded film thickness, unchanged liquid material, monochrome portraits, fade
+and reset. It also provides a paused preview and direct touch/drag interaction.
