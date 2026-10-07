@@ -10,7 +10,7 @@ export function bindIntroSettings(): () => void {
       const encoded = JSON.stringify(value);
       window.localStorage.setItem(INTRO_SETTINGS_KEY, encoded);
       saved = window.localStorage.getItem(INTRO_SETTINGS_KEY) === encoded;
-    } catch { /* Report a persistence failure to the Mac, without losing live settings. */ }
+    } catch { /* Keep live settings when persistence fails. */ }
     reportIntroSettings(value, saved);
   };
   let initial = DEFAULT_INTRO;
@@ -26,8 +26,8 @@ export function bindIntroSettings(): () => void {
     const value: unknown = (event as CustomEvent).detail;
     if (!validIntroSettings(value)) return;
     update(value);
-    event.preventDefault(); // Native dispatch can distinguish an accepted setting from an unsupported UI.
+    event.preventDefault(); // Mark a valid local settings event as handled.
   };
-  window.addEventListener('michas:intro-settings', receive);
-  return () => window.removeEventListener('michas:intro-settings', receive);
+  window.addEventListener('vitani-prvaku:intro-settings', receive);
+  return () => window.removeEventListener('vitani-prvaku:intro-settings', receive);
 }

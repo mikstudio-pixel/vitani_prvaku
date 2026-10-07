@@ -13,6 +13,6 @@ export function bindPresentationMode() {
     apply(enabled);
     event.preventDefault();
   };
-  window.addEventListener('michas:presentation', receive);
-  return () => window.removeEventListener('michas:presentation', receive);
+  window.addEventListener('vitani-prvaku:presentation', receive);
+  return () => window.removeEventListener('vitani-prvaku:presentation', receive);
 }

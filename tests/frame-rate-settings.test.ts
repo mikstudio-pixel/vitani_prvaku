@@ -16,7 +16,7 @@ function environment(storage = new Map<string, string>(), role = 'host') {
     localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value); } },
   });
   Object.defineProperty(globalThis, 'window', { value: win, configurable: true });
-  const receive = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('michas:frame-rate'), { detail }));
+  const receive = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('vitani-prvaku:frame-rate'), { detail }));
   return { win, reports, applied, storage, receive, bind: () => bindFrameRate(value => applied.push(value)) };
 }
 

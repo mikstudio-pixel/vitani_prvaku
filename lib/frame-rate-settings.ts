@@ -23,6 +23,6 @@ export function bindFrameRate(apply: (fps: FrameRate) => void): () => void {
     const fps: unknown = (event as CustomEvent).detail;
     if (validFrameRate(fps)) update(fps);
   };
-  window.addEventListener('michas:frame-rate', receive);
-  return () => window.removeEventListener('michas:frame-rate', receive);
+  window.addEventListener('vitani-prvaku:frame-rate', receive);
+  return () => window.removeEventListener('vitani-prvaku:frame-rate', receive);
 }

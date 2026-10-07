@@ -51,7 +51,7 @@ export function useSideScenario(sync: TraySync) {
       }
     };
     window.addEventListener('deviceorientation', orientation);
-    window.addEventListener('michas:power', resetAfterPause);
+    window.addEventListener('vitani-prvaku:power', resetAfterPause);
     document.addEventListener('visibilitychange', resetAfterPause);
     nativeCommand('tilt', true);
     reportSimulationReady(true);
@@ -94,7 +94,7 @@ export function useSideScenario(sync: TraySync) {
       reportSimulationReady(false);
       nativeCommand('tilt', false);
       window.removeEventListener('deviceorientation', orientation);
-      window.removeEventListener('michas:power', resetAfterPause);
+      window.removeEventListener('vitani-prvaku:power', resetAfterPause);
       document.removeEventListener('visibilitychange', resetAfterPause);
     };
   }, []);

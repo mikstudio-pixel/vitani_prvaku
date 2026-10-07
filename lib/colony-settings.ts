@@ -21,8 +21,8 @@ export function useColonyDirection(enabled = true) {
     // eslint-disable-next-line react/react-compiler -- Restore persisted device settings after mount.
     apply(valid(value) ? value : DEFAULT_COLONY_DIRECTION);
     const receive = (event: Event) => { const value: unknown = (event as CustomEvent).detail; if (valid(value)) apply(value); };
-    window.addEventListener('michas:colony-direction', receive);
-    return () => window.removeEventListener('michas:colony-direction', receive);
+    window.addEventListener('vitani-prvaku:colony-direction', receive);
+    return () => window.removeEventListener('vitani-prvaku:colony-direction', receive);
   }, [apply, enabled]);
   return { direction, saved, setDirection: apply };
 }

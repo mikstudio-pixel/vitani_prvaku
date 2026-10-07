@@ -24,6 +24,6 @@ export function bindMixingSensitivity(apply: (value: number) => void): () => voi
     const value: unknown = (event as CustomEvent).detail;
     if (validMixingSensitivity(value)) update(value);
   };
-  window.addEventListener('michas:mixing-sensitivity', receive);
-  return () => window.removeEventListener('michas:mixing-sensitivity', receive);
+  window.addEventListener('vitani-prvaku:mixing-sensitivity', receive);
+  return () => window.removeEventListener('vitani-prvaku:mixing-sensitivity', receive);
 }

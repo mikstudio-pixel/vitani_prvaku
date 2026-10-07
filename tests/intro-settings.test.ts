@@ -104,7 +104,11 @@ void test('intro settings restore, persist and stay browser-local all roles; inv
   Object.defineProperty(globalThis, 'window', { value: win, configurable: true });
   const stop = bindIntroSettings();
   const value = { ...DEFAULT_INTRO, 'story.detected': 4.2, 'panels.color.duration': .8 };
-  const send = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('michas:intro-settings', { cancelable: true }), { detail }));
+  const send = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('vitani-prvaku:intro-settings', { cancelable: true }), { detail }));
+  const before = store.get(INTRO_SETTINGS_KEY);
+  assert.equal(win.dispatchEvent(Object.assign(new Event('michas:intro-settings', { cancelable: true }), { detail: value })), true);
+  assert.equal(SCENARIO.detected, DEFAULT_INTRO['story.detected'], 'Ignore the legacy exhibition event');
+  assert.equal(store.get(INTRO_SETTINGS_KEY), before, 'The native event must not persist settings');
   assert.equal(send(value), false);
   assert.equal(SCENARIO.detected, 4.2);
   assert.equal(INTRO.panels.color.duration, .8);

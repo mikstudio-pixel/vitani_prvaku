@@ -108,13 +108,13 @@ export function LeftDisplay({ intro, progress, stage, colonyDirection = DEFAULT_
       if (enabled()) frame = requestAnimationFrame(tick);
     };
     document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('michas:power', refresh);
+    window.addEventListener('vitani-prvaku:power', refresh);
     reducedMotion.addEventListener('change', refresh);
     refresh();
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('michas:power', refresh);
+      window.removeEventListener('vitani-prvaku:power', refresh);
       reducedMotion.removeEventListener('change', refresh);
     };
   }, [intro.stage]);

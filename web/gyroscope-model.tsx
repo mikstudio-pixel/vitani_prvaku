@@ -82,12 +82,12 @@ export function GyroscopeModel({ gyro, light, source, active }: { gyro: GyroAngl
     wake.current = refresh;
     resize();
     document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('michas:power', refresh);
+    window.addEventListener('vitani-prvaku:power', refresh);
     window.addEventListener('resize', resize);
     return () => {
       cancelAnimationFrame(frame); wake.current = () => {};
       document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('michas:power', refresh);
+      window.removeEventListener('vitani-prvaku:power', refresh);
       window.removeEventListener('resize', resize);
     };
   }, []);

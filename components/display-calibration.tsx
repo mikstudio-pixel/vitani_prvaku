@@ -10,8 +10,8 @@ type CalibrationUpdate = (value: DisplayCalibration | ((current: DisplayCalibrat
 
 const syncSnapshot = (): TraySync | undefined => undefined;
 const subscribeSync = (callback: () => void) => {
-  window.addEventListener('michas:sync', callback);
-  return () => window.removeEventListener('michas:sync', callback);
+  window.addEventListener('vitani-prvaku:sync', callback);
+  return () => window.removeEventListener('vitani-prvaku:sync', callback);
 };
 
 export function useDisplayCalibration(role: CalibrationRole) {
@@ -47,9 +47,9 @@ export function useDisplayCalibration(role: CalibrationRole) {
       const detail = (event as CustomEvent<{ target: string; value: DisplayCalibration }>).detail;
       if (detail?.target === role) apply(detail.value);
     };
-    window.addEventListener('michas:admin-calibration', remote);
+    window.addEventListener('vitani-prvaku:admin-calibration', remote);
     receive();
-    return () => { unsubscribe(); window.removeEventListener('michas:admin-calibration', remote); };
+    return () => { unsubscribe(); window.removeEventListener('vitani-prvaku:admin-calibration', remote); };
   }, [role, apply]);
   const update: CalibrationUpdate = value => apply(typeof value === 'function' ? value(current.current) : value);
   return { calibration, update, saved };
@@ -132,10 +132,10 @@ export function CalibrationPanel({ display: role, sync, calibration, update, sav
     const show = () => setOpen(true);
     const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     resize();
-    window.addEventListener('michas:calibrate', show);
+    window.addEventListener('vitani-prvaku:calibrate', show);
     window.addEventListener('resize', resize);
     return () => {
-      window.removeEventListener('michas:calibrate', show);
+      window.removeEventListener('vitani-prvaku:calibrate', show);
       window.removeEventListener('resize', resize);
     };
   }, []);

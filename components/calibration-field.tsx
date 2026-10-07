@@ -26,12 +26,12 @@ export function CalibrationField({ id, label, unit, value, min, max, step, amoun
     const stop = () => { hold.current?.stop(); hold.current = null; pointer.current = null; };
     const hidden = () => { if (document.hidden || isNativePaused()) stop(); };
     window.addEventListener('blur', stop);
-    window.addEventListener('michas:power', hidden);
+    window.addEventListener('vitani-prvaku:power', hidden);
     document.addEventListener('visibilitychange', hidden);
     return () => {
       stop();
       window.removeEventListener('blur', stop);
-      window.removeEventListener('michas:power', hidden);
+      window.removeEventListener('vitani-prvaku:power', hidden);
       document.removeEventListener('visibilitychange', hidden);
     };
   }, [amount]);

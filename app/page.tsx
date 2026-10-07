@@ -188,8 +188,8 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     }
     canvas.addEventListener('webglcontextlost', lost);
     window.addEventListener('blur', blurred);
-    window.addEventListener('michas:power', powerChanged);
-    window.addEventListener('michas:simulation', simulate);
+    window.addEventListener('vitani-prvaku:power', powerChanged);
+    window.addEventListener('vitani-prvaku:simulation', simulate);
     document.addEventListener('visibilitychange', powerChanged);
     powerChanged();
     return () => {
@@ -200,8 +200,8 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       simulation.current = null; setSimulating(false); reportSimulationReady(false);
       canvas.removeEventListener('webglcontextlost', lost);
       window.removeEventListener('blur', blurred);
-      window.removeEventListener('michas:power', powerChanged);
-      window.removeEventListener('michas:simulation', simulate);
+      window.removeEventListener('vitani-prvaku:power', powerChanged);
+      window.removeEventListener('vitani-prvaku:simulation', simulate);
       document.removeEventListener('visibilitychange', powerChanged);
     };
   }, [quality, updateTilt, resetPortion]);

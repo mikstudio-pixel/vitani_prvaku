@@ -24,7 +24,7 @@ function environment(stored?: string, role = 'host') {
   });
   Object.defineProperty(globalThis, 'window', { value: win, configurable: true });
   return { win, storage, reports, applied,
-    receive: (detail: unknown) => win.dispatchEvent(Object.assign(new Event('michas:qr-animation'), { detail })),
+    receive: (detail: unknown) => win.dispatchEvent(Object.assign(new Event('vitani-prvaku:qr-animation'), { detail })),
     bind: () => bindQrAnimation(value => applied.push(value)),
   };
 }

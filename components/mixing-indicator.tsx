@@ -33,7 +33,7 @@ function ArrivalCaption() {
     const tick = (now: number) => {
       const count = reduced ? glyphs.length : Math.min(glyphs.length, Math.floor((now - started) / 45));
       glyphs.forEach((glyph, index) => { glyph.style.visibility = index < count ? 'visible' : 'hidden'; });
-      if (count > sounded && !reduced) window.dispatchEvent(new Event('michas:typing'));
+      if (count > sounded && !reduced) window.dispatchEvent(new Event('vitani-prvaku:typing'));
       sounded = count;
       if (count < glyphs.length) animation = requestAnimationFrame(tick);
     };

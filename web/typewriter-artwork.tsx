@@ -116,7 +116,7 @@ function useOutlinedCaption(root: RefObject<HTMLSpanElement | null>, overlay: Re
       if (generation.current !== token) return;
       const cursor = reduced ? count : Math.max(0, Math.floor((now - started - delay) / interval));
       const typed = Math.min(cursor, glyphs.length);
-      if (typed > sounded && !reduced && manualTime.current === undefined) window.dispatchEvent(new Event('michas:typing'));
+      if (typed > sounded && !reduced && manualTime.current === undefined) window.dispatchEvent(new Event('vitani-prvaku:typing'));
       sounded = typed;
       const region = (glyph: SVGPathElement) => JSON.parse(glyph.dataset.glyph!) as Box;
       const revealed = glyphs.slice(0, cursor).map(region);

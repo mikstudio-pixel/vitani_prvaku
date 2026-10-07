@@ -185,17 +185,17 @@ export function bindInstallationAudio(player: InstallationAudio) {
   const test = (event: Event) => { void player.test().catch(error => console.warn('Zvuk se nepodařilo připravit.', error)); event.preventDefault(); };
   window.addEventListener('pointerdown', prepare);
   window.addEventListener('keydown', prepare);
-  window.addEventListener('michas:power', power);
-  window.addEventListener('michas:typing', typing);
-  window.addEventListener('michas:sound-test', test);
+  window.addEventListener('vitani-prvaku:power', power);
+  window.addEventListener('vitani-prvaku:typing', typing);
+  window.addEventListener('vitani-prvaku:sound-test', test);
   document.addEventListener('visibilitychange', power);
   if (isNativeHost()) prepare();
   return () => {
     window.removeEventListener('pointerdown', prepare);
     window.removeEventListener('keydown', prepare);
-    window.removeEventListener('michas:power', power);
-    window.removeEventListener('michas:typing', typing);
-    window.removeEventListener('michas:sound-test', test);
+    window.removeEventListener('vitani-prvaku:power', power);
+    window.removeEventListener('vitani-prvaku:typing', typing);
+    window.removeEventListener('vitani-prvaku:sound-test', test);
     document.removeEventListener('visibilitychange', power);
     player.dispose();
     unbindSettings();

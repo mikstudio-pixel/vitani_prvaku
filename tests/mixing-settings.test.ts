@@ -20,7 +20,7 @@ function environment(storage = new Map<string, string>(), role = 'host') {
     },
   });
   Object.defineProperty(globalThis, 'window', { value: win, configurable: true });
-  const receive = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('michas:mixing-sensitivity'), { detail }));
+  const receive = (detail: unknown) => win.dispatchEvent(Object.assign(new Event('vitani-prvaku:mixing-sensitivity'), { detail }));
   return { win, reports, applied, storage, receive, bind: () => bindMixingSensitivity(value => applied.push(value)) };
 }
 

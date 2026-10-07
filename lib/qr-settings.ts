@@ -25,6 +25,6 @@ export function bindQrAnimation(apply: (value: QrAnimationSettings) => void): ()
     const value: unknown = (event as CustomEvent).detail;
     if (validQrAnimation(value)) update(value);
   };
-  window.addEventListener('michas:qr-animation', receive);
-  return () => window.removeEventListener('michas:qr-animation', receive);
+  window.addEventListener('vitani-prvaku:qr-animation', receive);
+  return () => window.removeEventListener('vitani-prvaku:qr-animation', receive);
 }

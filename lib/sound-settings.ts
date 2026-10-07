@@ -37,6 +37,6 @@ export function bindSoundSettings(apply: (value: SoundSettings) => void) {
     if (!validSoundSettings(value)) return;
     update(value); event.preventDefault();
   };
-  window.addEventListener('michas:sound-settings', receive);
-  return () => window.removeEventListener('michas:sound-settings', receive);
+  window.addEventListener('vitani-prvaku:sound-settings', receive);
+  return () => window.removeEventListener('vitani-prvaku:sound-settings', receive);
 }

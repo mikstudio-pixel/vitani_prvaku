@@ -27,7 +27,8 @@ native update packages, `.git`, environment files, build products, and the
 original `.openai` hosting identity were excluded. Shared graphics live in
 `web/` rather than `native/web/`.
 
-All persistent browser settings use `vitani-prvaku.*`, including sensor
+Internal browser events use `vitani-prvaku:*` and ignore the exhibition’s
+`michas:*` events. All persistent browser settings use `vitani-prvaku.*`, including sensor
 calibration and legacy settings migrations. Opening this event on the same
 Pages hostname does not intentionally read or write `michas.*` settings.
 The native bridge is hard-disabled: injected native globals are ignored and

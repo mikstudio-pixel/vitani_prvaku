@@ -37,12 +37,12 @@ void test('browser compatibility exports never access an injected exhibition bri
   }
 });
 
-void test('application source contains no access to Designblok native globals or handlers', () => {
+void test('application source contains no Designblok native globals, handlers or legacy events', () => {
   for (const directory of ['app', 'components', 'lib', 'web']) {
     for (const file of readdirSync(directory, { recursive: true }) as string[]) {
       if (!/\.tsx?$/.test(file)) continue;
       const path = join(directory, file);
-      assert.doesNotMatch(readFileSync(path, 'utf8'), /__michasNative|messageHandlers|\.postMessage\(/, path);
+      assert.doesNotMatch(readFileSync(path, 'utf8'), /__michasNative|messageHandlers|\.postMessage\(|michas:/, path);
     }
   }
 });
