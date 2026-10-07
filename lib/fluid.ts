@@ -125,19 +125,24 @@ const SOURCES = {
   ...TELEMETRY_SOURCES,
   ambientFlow: AMBIENT_FLOW,
 
-  oilStep: `uniform sampler2D film;uniform sampler2D velocity;uniform float dt;uniform bool depositing;
+  pigmentStep: `uniform sampler2D pigment;uniform sampler2D velocity;uniform float dt;uniform float hue;uniform bool depositing;uniform bool transporting;
 void main(){
  if(!wet(uv)){fragColor=vec4(0);return;}
- vec2 flow=sampleLinear(velocity,uv).xy;
- vec2 p=wall(uv-sampleLinear(velocity,wall(uv-flow*dt*0.5)).xy*dt);
- float center=sampleLinear(film,p).r;
- float neighbors=(sampleLinear(film,wall(p+vec2(texel.x,0))).r+sampleLinear(film,wall(p-vec2(texel.x,0))).r
-  +sampleLinear(film,wall(p+vec2(0,texel.y))).r+sampleLinear(film,wall(p-vec2(0,texel.y))).r)*0.25;
- float thickness=mix(center,neighbors,1.0-exp(-dt*3.0))*exp(-dt/2.2);
+ vec2 p=uv;
+ if(transporting){
+  vec2 flow=sampleLinear(velocity,uv).xy;
+  p=wall(uv-sampleLinear(velocity,wall(uv-flow*dt*0.5)).xy*dt);
+ }
+ vec4 center=sampleLinear(pigment,p);
+ vec4 neighbors=(sampleLinear(pigment,wall(p+vec2(texel.x,0)))+sampleLinear(pigment,wall(p-vec2(texel.x,0)))
+  +sampleLinear(pigment,wall(p+vec2(0,texel.y)))+sampleLinear(pigment,wall(p-vec2(0,texel.y))))*0.25;
+ // RGB stores premultiplied pigment; alpha carries its concentration.
+ vec4 color=mix(center,neighbors,transporting?1.0-exp(-dt*3.0):0.0)*exp(-dt/2.2);
  vec2 d=uv-touchPoint;
  float deposit=depositing?exp(-dot(d,d)/0.0064):0.0;
- thickness=1.0-(1.0-thickness)*exp(-deposit*dt*9.0);
- fragColor=vec4(clamp(thickness,0.0,1.0),0,0,1);
+ vec3 rainbow=0.5+0.5*cos(6.2831853*(hue+vec3(0.0,0.33,0.67)));
+ color=mix(color,vec4(rainbow,1.0),1.0-exp(-deposit*dt*9.0));
+ fragColor=clamp(color,0.0,1.0);
 }`,
 
   crestResponse: `uniform sampler2D previous;uniform sampler2D totals;uniform float stirring;uniform float dt;
@@ -376,7 +381,7 @@ void main(){
  fragColor=vec4(0.5+d*min(1.0,contact/max(r,0.00001)),state.zw*ratio);
 }`,
   display: `uniform sampler2D dye;uniform sampler2D surface;uniform sampler2D features;uniform vec2 tilt;
-uniform sampler2D oilFilm;uniform bool oilVisible;
+uniform sampler2D touchPigment;uniform bool pigmentVisible;
 uniform sampler2D crestState;uniform bool automaticCrests;
 uniform bool crestsEnabled;uniform bool contoursEnabled;uniform bool heightEnabled;uniform bool gridEnabled;uniform bool dotsEnabled;uniform bool flowEnabled;
 float phaseAt(vec2 p){return clamp(sampleBowl(dye,p).r,0.0,1.0);}
@@ -400,6 +405,12 @@ void main(){
  // make both phases wet, without floating sprites, static noise or film masks.
  vec3 normal=normalize(vec3(-slope*1.35-gradient*0.004-d*0.28+tilt*0.06,1.0));
  vec3 col=mix(vec3(0.90),vec3(0.045),dark);
+ if(pigmentVisible){
+  vec4 pigment=sampleBowl(touchPigment,uv);
+  vec3 bodyColor=pigment.rgb/max(pigment.a,0.00001);
+  // Tint the material before lighting, preserving the two phases and highlights.
+  col=mix(col,bodyColor*mix(0.90,0.24,dark),pigment.a);
+ }
  vec3 light=normalize(vec3(-0.5,0.65,1.1));
  col*=0.76+0.24*max(dot(normal,light),0.0);
  col*=1.0-elevation*0.6;
@@ -407,22 +418,10 @@ void main(){
  float softbox=exp(-pow((reflection.x+0.21)/0.18,2.0)-pow((reflection.y-0.42)/0.65,6.0));
  float strip=exp(-pow((reflection.x-reflection.y*0.3-0.48)/0.075,2.0)-pow((reflection.y+0.15)/0.7,4.0));
  float spec=pow(max(dot(reflect(-light,normal),vec3(0,0,1)),0.0),44.0);
- vec3 reflectedLight=vec3(1.0);
- float oilSheen=0.0;
- if(oilVisible){
-  float film=sampleBowl(oilFilm,uv).r;
-  float relief=smoothstep(0.015,0.18,length(slope*1.35+gradient*0.004));
-  // Interference follows the actual surface orientation, never the touch radius.
-  float optical=dot(reflection.xy,vec2(1.7,2.3))+elevation*8.0+phase*0.12;
-  vec3 rainbow=0.5+0.5*cos(6.2831853*(optical+vec3(0.0,0.33,0.67)));
-  float coating=clamp(film*1.6,0.0,1.0)*relief;
-  reflectedLight=mix(vec3(1.0),rainbow*1.8,coating);
-  oilSheen=coating*0.22;
- }
- col+=reflectedLight*((softbox*0.32+strip*0.18+spec*0.20)*mix(0.45,1.0,dark)+oilSheen);
+ col+=vec3(softbox*0.32+strip*0.18+spec*0.20)*mix(0.45,1.0,dark);
  float meniscus=4.0*phase*(1.0-phase);
  float edgeLight=max(dot(normalize(vec3(-gradient*0.004,1)),light),0.0);
- col+=reflectedLight*meniscus*edgeLight*0.055;
+ col+=vec3(meniscus*edgeLight*0.055);
  float edge=smoothstep(R-0.045,R,r);col*=1.0-0.30*edge;
  float interior=1.0-smoothstep(R-0.045,R,r);
  // Apply color layers before line work and crest light so every selected
@@ -498,7 +497,7 @@ export class FluidBowl {
   private targets: Target[] = [];
   private velocity: Pair;
   private dye: Pair;
-  private oilFilm: Pair;
+  private touchPigment: Pair;
   private portraitPattern: Target;
   private portraitOriginal: Target;
   private portraitElapsed = -1;
@@ -636,7 +635,7 @@ export class FluidBowl {
       }
       this.velocity = this.pair(this.simSize);
       this.dye = this.pair(this.dyeSize, true);
-      this.oilFilm = { read: this.target(this.simSize, true, 'r'), write: this.target(this.simSize, true, 'r') };
+      this.touchPigment = this.pair(this.simSize, true);
       this.portraitPattern = this.target(PORTRAIT_SIZE, true, 'r');
       this.portraitOriginal = this.target(this.dyeSize, true);
       this.qrPattern = this.target(QR_SIZE, true, 'r');
@@ -872,7 +871,7 @@ export class FluidBowl {
     this.boundaryRadius = value === 'hybrid' || value === 'curved' ? VISIBLE_RADIUS : OUTER_RADIUS;
     if (previousRadius === this.boundaryRadius && previousCurved === (value === 'curved')) return;
     // Carry the current portion into the new domain instead of reseeding it.
-    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye, this.oilFilm])) {
+    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye, this.touchPigment])) {
       this.draw('reframe', pair.write, { source: pair.read, previousRadius, isVelocity: pair === this.velocity || pair === this.mixingVelocity, isDye: pair === this.dye });
       this.swap(pair);
     }
@@ -1108,7 +1107,7 @@ export class FluidBowl {
       }
       this.draw('features', this.features, { surface: featureSurface, velocity, flowMode: flowEnabled, crestMode });
     }
-    this.draw('display', null, { dye, surface, oilFilm: this.oilFilm.read, oilVisible: !this.portraitActive && !this.easterEggActive && this.qrElapsed < 0, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
+    this.draw('display', null, { dye, surface, touchPigment: this.touchPigment.read, pigmentVisible: !this.portraitActive && !this.easterEggActive && this.qrElapsed < 0, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
     if (flowEnabled) this.draw('flowDisplay', null, { particleState: this.particles.read, viewportSize: this.canvas.width });
   }
   setPortrait(image: ImageData, resolution = PORTRAIT_SIZE) {
@@ -1247,8 +1246,8 @@ export class FluidBowl {
       }
     }
     else if (this.easterEggActive || this.portraitActive) this.stepMaterial(dt);
-    this.draw('oilStep', this.oilFilm.write, { film: this.oilFilm.read, velocity: this.materialVelocity(), dt, depositing: attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive });
-    this.swap(this.oilFilm);
+    this.draw('pigmentStep', this.touchPigment.write, { pigment: this.touchPigment.read, velocity: this.materialVelocity(), dt, hue: this.elapsed * .35, transporting: !this.physicsPaused, depositing: attraction === 1 && !this.physicsPaused && this.qrElapsed < 0 && !this.easterEggActive });
+    this.swap(this.touchPigment);
     this.reportFrame(time);
     this.reportTelemetry(time);
     this.render();

@@ -28,12 +28,12 @@ while touching and fades after release. Multiple fingers cancel the well. Its
 force acts on both surface waves and material currents; the fluid is transported
 rather than painted or deleted. Capture releases the well during the flashes.
 
-Touch also gives the liquid relief temporary iridescent reflections. Color is
-computed from the actual surface normals, height and material interfaces, and
-replaces the relief's reflected light. Flat areas remain monochrome. A separate
-scalar field carries the coating with the material current and fades after
-release; it does not paint a rainbow disk or change the liquid ingredients or
-portrait mask. Portraits remain monochrome, and reset clears the coating.
+Touch also changes the liquid's own color. RGB pigment is deposited into a
+material field and travels with the liquid current; the injected hue cycles
+through rainbow colors while touching. Pigment tints both phases before the
+existing lighting, including flat areas. Reflections remain neutral. Color
+fades after release, pauses its transport with physics, stays hidden during
+portraits and resets with the liquid.
 
 One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
@@ -89,6 +89,7 @@ Neither fixture is included in the Pages build.
 `/tests/browser-touch-gravity.html` is a local GPU fixture for inward surface and
 material currents, release fade, edge coordinates and reset, without a camera.
 
-`/tests/browser-touch-oil.html` checks visible rainbow color, passive transport,
-bounded film thickness, monochrome flat areas, unchanged liquid material, monochrome portraits, fade
-and reset. It also provides a paused preview and direct touch/drag interaction.
+`/tests/browser-touch-oil.html` checks colored liquid including flat areas,
+passive pigment transport, bounded concentration, rim alignment, unchanged
+phase material, monochrome portraits, paused transport, release fade and reset.
+It also provides a paused preview and direct touch/drag interaction.
