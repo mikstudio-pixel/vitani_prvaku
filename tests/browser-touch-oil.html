@@ -71,6 +71,12 @@ document.getElementById('run').onclick = () => {
       bowl.swap(bowl.oilFilm);
     }
     assert(centroid(field(bowl.oilFilm.read)) > centroid(held) + .02, 'Oil must travel with the material current');
+    const oldRadius = bowl.boundaryRadius, oldCenter = centroid(field(bowl.oilFilm.read));
+    bowl.setRimMode('under');
+    const reframedCenter = centroid(field(bowl.oilFilm.read));
+    assert(Math.abs(reframedCenter-.5-(oldCenter-.5)*bowl.boundaryRadius/oldRadius) < .004, 'Changing the rim must carry the coating with the liquid');
+    bowl.setRimMode('curved');
+    assert(Math.abs(centroid(field(bowl.oilFilm.read))-oldCenter) < .004, 'Returning the rim must preserve coating alignment');
     bowl.portraitElapsed = 0; bowl.render();
     assert(colorCount(pixels()) === 0, 'Portrait must retain its monochrome material');
     bowl.portraitElapsed = -1;
@@ -82,7 +88,7 @@ document.getElementById('run').onclick = () => {
     bowl.reset();
     assert(maximum(field(bowl.oilFilm.read)) === 0 && colorCount(pixels()) === 0, 'Reset must clear all color');
     assert(gl.getError() === gl.NO_ERROR, 'GPU passes must be error-free');
-    output.textContent = `PASS: ${colored} colored relief pixels, flat areas unchanged, finite film, fluid transport, unchanged material, monochrome portrait, release fade, reset`;
+    output.textContent = `PASS: ${colored} colored relief pixels, flat areas unchanged, finite film, fluid transport, rim alignment, unchanged material, monochrome portrait, release fade, reset`;
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
 };
 document.getElementById('preview').onclick = () => {

@@ -872,7 +872,7 @@ export class FluidBowl {
     this.boundaryRadius = value === 'hybrid' || value === 'curved' ? VISIBLE_RADIUS : OUTER_RADIUS;
     if (previousRadius === this.boundaryRadius && previousCurved === (value === 'curved')) return;
     // Carry the current portion into the new domain instead of reseeding it.
-    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye])) {
+    for (const pair of new Set([this.velocity, this.surface, this.mixingVelocity, this.mixingSurface, this.dye, this.oilFilm])) {
       this.draw('reframe', pair.write, { source: pair.read, previousRadius, isVelocity: pair === this.velocity || pair === this.mixingVelocity, isDye: pair === this.dye });
       this.swap(pair);
     }
