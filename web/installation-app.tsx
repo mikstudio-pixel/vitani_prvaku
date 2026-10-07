@@ -48,7 +48,7 @@ function SideDisplay({ role, sync }: { role: DisplayRole; sync: TraySync }) {
     <div className="tray-artwork" data-wake-stage={motion.intro.stage} style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`, filter: role === 'left' ? `grayscale(${monochrome})` : undefined,
       visibility: !motion.frozen && (motion.intro.stage === 'waiting' || motion.intro.stage === 'orbit' || motion.scenario.stage === 'detected') ? 'hidden' : undefined }}>
       {role === 'left'
-        ? <LeftDisplay intro={motion.intro} progress={motion.scenario.stage === 'standby' ? 0 : motion.scenario.progress} stage={motion.scenario.stage} colonyDirection={colony.direction} />
+        ? <LeftDisplay intro={motion.intro} progress={motion.scenario.stage === 'standby' ? 0 : visualMixingProgress(motion.scenario.progress)} stage={motion.scenario.stage} colonyDirection={colony.direction} />
         : <RightDisplay scenario={motion.scenario} sample={motion.input.sample} monochrome={monochrome} source={motion.demo === 'live' ? motion.input.source : 'demo'} />}
     </div>
     <CalibrationPanel display={role} sync={sync} {...settings}>

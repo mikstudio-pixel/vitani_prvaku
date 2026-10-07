@@ -46,7 +46,10 @@ export class InstallationAudio {
       if (!response.ok) throw new Error(`Audio: ${key} (${response.status})`);
       const buffer = await this.context!.decodeAudioData(await response.arrayBuffer());
       if (!this.disposed) this.buffers.set(key as Asset, buffer);
-    })).then(() => {});
+    })).then(() => {}).catch(error => {
+      this.loading = null;
+      throw error;
+    });
     await this.loading;
     this.report();
   }
