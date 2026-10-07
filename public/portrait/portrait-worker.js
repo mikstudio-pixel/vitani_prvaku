@@ -59,7 +59,11 @@ async function isolate(frame) {
       foreground += image.data[i + 3] / 255;
     }
     if (foreground < 512 * 512 * .1) throw new Error('Portrét není dostatečně vidět. Zkuste to znovu.');
-    return { width: 512, height: 512, data: image.data };
+    // Shrink the isolated portrait; transparent padding becomes uniform liquid.
+    cropped.context.putImageData(image, 0, 0);
+    const padded = canvas(512, 512), inset = 512 * .1;
+    padded.context.drawImage(cropped.surface, inset, inset, 512 * .8, 512 * .8);
+    return { width: 512, height: 512, data: padded.context.getImageData(0, 0, 512, 512).data };
   } finally { segmentation.close(); }
 }
 self.onmessage = async ({ data }) => {
