@@ -42,8 +42,8 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .fluid-window[data-rim-mode="edge"] .fluid-canvas {inset:-0.50505%;width:101.0101%;height:101.0101%}
 .tilt-ring {position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;fill:none}
 .led-housing {fill:#2c3034}
-.led-light {fill:#1279ff;filter:drop-shadow(0 0 1.4px #1279ff) drop-shadow(0 0 3.5px #1279ff99)}
-.led-peak {fill:#1279ff;filter:drop-shadow(0 0 1.2px #1279ff) drop-shadow(0 0 4px #1279ff) drop-shadow(0 0 9px #1279ffb3)}
+.led-light {fill:#a855f7;filter:drop-shadow(0 0 1.4px #a855f7) drop-shadow(0 0 3.5px #a855f799)}
+.led-peak {fill:#a855f7;filter:drop-shadow(0 0 1.2px #a855f7) drop-shadow(0 0 4px #a855f7) drop-shadow(0 0 9px #a855f7b3)}
 .led-light,.led-peak {transition:none}
 @media(prefers-reduced-motion:reduce){.led-light,.led-peak{transition:none}}
 
@@ -51,28 +51,6 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .camera-source {position:fixed;left:-2px;top:-2px;width:1px;height:1px;opacity:0;pointer-events:none}
 
 .app-version {position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:3;color:#aaa;font:12px/1.3 ui-monospace,'SFMono-Regular',Consolas,monospace;letter-spacing:.03em;pointer-events:none;user-select:none}
-
-/* Temporary, passive capture diagnostics. Frames live only in page memory. */
-.portrait-preview { position: fixed; z-index: 5; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 8px; width: 224px; padding: 8px; background: #131313e8; border-radius: 8px; pointer-events: none; color: #bbb; font: 10px/1.3 system-ui; }
-.portrait-preview figure { margin: 0; width: 96px; }
-.portrait-preview canvas { display: block; width: 96px; height: 96px; object-fit: contain; background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 12px 12px; }
-.portrait-preview figcaption { padding-top: 4px; }
-.portrait-preview output { width: 100%; }
-
-.portrait-preview.is-empty { width: 224px; }
-.portrait-switch { pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; border: 0; padding: 4px 0; background: transparent; color: #ddd; cursor: pointer; font: 12px/1.4 system-ui; }
-.portrait-switch:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
-.switch-track { position: relative; width: 28px; height: 16px; border-radius: 12px; background: #444; }
-.switch-track::after { content: ''; position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #ccc; transition: transform .15s; }
-.portrait-switch[aria-checked="true"] .switch-track { background: #2b6ccc; }
-.portrait-switch[aria-checked="true"] .switch-track::after { transform: translateX(12px); background: white; }
-
-.portrait-preview canvas[aria-label="Do kapaliny"], .portrait-preview canvas[aria-label="Roztažený portrét"] { image-rendering: pixelated; }
-.portrait-resolution { pointer-events: auto; display: block; width: 100%; margin-top: 2px; }
-.portrait-resolution > span { display: flex; justify-content: space-between; }
-.portrait-resolution output { width: auto; }
-.portrait-resolution input { display: block; width: 100%; height: 28px; margin: 2px 0; accent-color: #60a5fa; }
-.resolution-ends { color: #777; font-size: 9px; }
 
 /* Operator connection is separate from the visitor's capture flow. */
 .archive-status { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 20; display: flex; gap: 10px; font: 11px/1.4 sans-serif; color: #777; }

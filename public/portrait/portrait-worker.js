@@ -33,8 +33,8 @@ async function isolate(frame) {
   const box = detections.map(d => d.boundingBox).filter(Boolean)
     .sort((a, b) => b.width * b.height - a.width * a.height)[0];
   if (!box) throw new Error('Obličej nenalezen. Přibližte se a zkuste to znovu.');
-  // A tight head crop retains forehead and chin, instead of shrinking a whole scene.
-  const side = Math.max(box.width * 1.35, box.height * 1.45);
+  // Keep forehead and chin with more breathing room inside the circular bowl.
+  const side = Math.max(box.width * 1.35, box.height * 1.45) / .8;
   const left = box.originX + box.width / 2 - side / 2;
   const top = box.originY + box.height * .42 - side / 2;
   const cropped = canvas(512, 512);
@@ -59,7 +59,11 @@ async function isolate(frame) {
       foreground += image.data[i + 3] / 255;
     }
     if (foreground < 512 * 512 * .1) throw new Error('Portrét není dostatečně vidět. Zkuste to znovu.');
-    return { width: 512, height: 512, data: image.data };
+    // Shrink the isolated portrait; transparent padding becomes uniform liquid.
+    cropped.context.putImageData(image, 0, 0);
+    const padded = canvas(512, 512), inset = 512 * .1;
+    padded.context.drawImage(cropped.surface, inset, inset, 512 * .8, 512 * .8);
+    return { width: 512, height: 512, data: padded.context.getImageData(0, 0, 512, 512).data };
   } finally { segmentation.close(); }
 }
 self.onmessage = async ({ data }) => {

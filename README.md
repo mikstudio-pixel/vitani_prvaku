@@ -37,9 +37,11 @@ portraits and resets with the liquid.
 
 One continuous finger hold fills the LED ring clockwise over one second. A short
 touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
-Once full, the ring flashes twice. The square mirrored camera frame is averaged
-into a **90 × 90 binary mask**, with an adaptive brightness threshold. It uses
-the same mask resolution and GPU gathering shader as the Bob easter egg.
+Once full, the ring flashes twice. The face is isolated from the mirrored camera
+frame with room around the head, then converted into a five-tone monochrome
+mask at a fixed 128 × 128 resolution. Stretch and pixelation are always enabled.
+The visitor sees only the bowl and its purple LED ring, without portrait
+controls or camera preview images.
 The current liquid rearranges into the portrait over three seconds, holds for
 three seconds, then dissolves over two seconds back into the previous liquid.
 The next visitor can then start automatically. No image overlay is used.

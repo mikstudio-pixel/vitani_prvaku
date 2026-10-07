@@ -8,6 +8,13 @@
   import { InstallationApp } from '../web/installation-app.tsx';
   import '../app/globals.css';
   import { FluidBowl } from '../lib/fluid.ts';
+  import { PortraitProcessor } from '../lib/portrait-processor.ts';
+  let rejectedPortrait;
+  const processPortrait = PortraitProcessor.prototype.process;
+  PortraitProcessor.prototype.process = function(image) {
+    rejectedPortrait = null;
+    return processPortrait.call(this, image).catch(error => { rejectedPortrait = error; throw error; });
+  };
   // This local fixture cannot request or access a hardware camera.
   const picture = new Image(); picture.src = '/outputs/portrait-test.jpg'; await picture.decode();
   const source = document.createElement('canvas'); source.width = picture.width; source.height = picture.height;
@@ -51,7 +58,7 @@
     try {
       bowl.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:9011,pointerType:'touch',clientX:700,clientY:400}));
       await wait(1100); bowl.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:9011,pointerType:'touch'}));
-      await until(() => document.querySelector('.portrait-preview output')?.textContent.includes('Obličej nenalezen'));
+      await until(() => rejectedPortrait?.message.includes('Obličej nenalezen'));
       if (document.querySelector('main').dataset.portrait !== 'idle') throw new Error('Neúspěšný záběr zablokoval aplikaci');
       result.textContent='PASS: záběr bez obličeje odmítnut, žádná původní fotografie v kapalině; další návštěvník může přijít';
     } catch(error) { result.textContent=`FAIL: ${error.message}`; } finally { hasFace = true; }

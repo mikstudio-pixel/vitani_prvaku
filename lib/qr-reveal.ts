@@ -1,7 +1,7 @@
 // The guide is a chemical potential, not a concentration image. Every update
 // transfers existing dark material between cells, with equal/opposite fluxes.
 export const QR_SOURCES = {
-  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;uniform float backgroundExtent;
+  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;uniform bool smoothPortrait;uniform float backgroundExtent;
 void main(){
  vec2 p=(uv-0.5)/extent+0.5;
  vec2 n=vec2(textureSize(qr,0)),cell=p*n;
@@ -9,7 +9,7 @@ void main(){
  float sharpen=smoothstep(0.15,1.0,progress);
  vec2 drift=vec2(sin(p.y*9.0+progress),cos(p.x*8.0-progress));
  cell+=drift*0.6*(1.0-sharpen);
- float sigma=mix(1.5,0.32,sharpen),ink=0.0,total=0.0;
+ float sigma=mix(1.5,smoothPortrait?0.9:0.32,sharpen),ink=0.0,total=0.0;
  for(int y=-3;y<=3;y++)for(int x=-3;x<=3;x++){
   vec2 at=floor(cell)+vec2(x,y),d=cell-at-0.5;
   float weight=exp(-dot(d,d)/(2.0*sigma*sigma));
@@ -19,7 +19,8 @@ void main(){
  }
  ink/=total;
  float exact=all(greaterThanEqual(cell,vec2(0)))&&all(lessThan(cell,n))?texelFetch(qr,ivec2(cell),0).r:0.0;
- ink=mix(ink,exact,smoothstep(0.80,1.0,progress));
+ if(smoothPortrait)ink=floor(ink*4.0+0.5)/4.0;
+ else ink=mix(ink,exact,smoothstep(0.80,1.0,progress));
  // The larger code emerges in an organic circular body, without a square frame.
  float noise=texture(noiseField,uv).r;
  float outside=portrait?smoothstep(0.47,0.50,length(uv-0.5)/backgroundExtent+noise*0.01):smoothstep(0.37,0.42,length(uv-0.5)+noise*0.018);
