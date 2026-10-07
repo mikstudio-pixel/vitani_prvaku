@@ -10,12 +10,15 @@ import { clampTilt, type Tilt } from '@/lib/tilt';
 import { registerPrototypeTools } from '@/lib/prototype-tools';
 import { DeviceTilt, SENSORS_OFF } from '@/lib/device-tilt';
 import { usePortraitCamera } from '@/components/use-portrait-camera';
+import { usePortraitArchive } from '@/components/use-portrait-archive';
 import { PortraitRing } from '@/components/portrait-ring';
 
 const FLASH_SECONDS = .8;
 type Phase = 'idle' | 'processing' | 'flash' | 'revealing' | 'holding' | 'dissolving';
 
 export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }) {
+  const archive = usePortraitArchive();
+  const savePortrait = useRef(archive.save); savePortrait.current = archive.save;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bowlRef = useRef<HTMLButtonElement>(null);
   const engine = useRef<FluidBowl | null>(null);
@@ -124,7 +127,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         if (elapsed < FLASH_SECONDS) setFlash(elapsed);
         else {
           pending.current = null; setFlash(null);
-          try { engine.current?.setPortrait(frame.image, PORTRAIT_SIZE); }
+          try { engine.current?.setPortrait(frame.image, PORTRAIT_SIZE); void savePortrait.current(frame.image, PORTRAIT_SIZE); }
           catch (cause) { setError(cause instanceof Error ? cause.message : 'Fotografii se nepodařilo zobrazit.'); }
         }
       }
@@ -159,6 +162,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     <output className="app-version" title={APP_VERSION} aria-label={`Verze aplikace ${APP_VERSION}`}>
       v {APP_VERSION === 'development' ? 'vývoj' : APP_VERSION.slice(0, 7)}
     </output>
+    <div className="archive-status"><a href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/pripojeni/`}>{archive.status}</a><button type="button" aria-label="Zkusit odeslat portréty znovu" onClick={() => { void archive.retry(); }}>↻</button></div>
     <video ref={photo.videoRef} muted playsInline className="camera-source" aria-hidden="true" />
     <button ref={bowlRef} type="button" className="bowl" disabled={!ready}
       aria-label="Podrž prst jednu sekundu pro portrét v kapalině."

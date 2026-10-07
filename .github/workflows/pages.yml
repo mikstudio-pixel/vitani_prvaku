@@ -23,7 +23,7 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /vitani_prvaku
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
-      - run: test -f dist/index.html
+      - run: test -f dist/index.html && test -f dist/galerie/index.html && test -f dist/pripojeni/index.html
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
