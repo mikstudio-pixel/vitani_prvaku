@@ -24,7 +24,8 @@ function Portrait({ row, canDelete, onDeleted, style }: { row: PortraitRow; canD
     catch { setDeleteError('Smazání selhalo. Zkus to znovu.'); }
     finally { setDeleting(false); }
   };
-  return <figure className="gallery-portrait" style={style}>{url ? <img src={url} alt="Portrét návštěvníka" /> : failed ?
+  return <figure className="gallery-portrait" style={style} tabIndex={canDelete ? 0 : undefined}
+    onPointerDown={event => { if (canDelete && event.pointerType !== 'mouse') event.currentTarget.focus(); }}>{url ? <img src={url} alt="Portrét návštěvníka" /> : failed ?
     <button className="gallery-retry" onClick={() => setAttempt(value => value + 1)}>Načíst znovu</button> : <span aria-label="Načítám portrét" />}
     {canDelete && <button className="gallery-delete" aria-label="Smazat portrét" title={deleteError || 'Smazat portrét'} disabled={deleting} onClick={() => { void remove(); }}>
       {deleting ? <LoaderCircle size={16} className="gallery-spinner" /> : <X size={16} />}
