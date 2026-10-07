@@ -23,7 +23,7 @@
         configurable: true,
         value: { requestPermission: async () => 'denied' },
       });
-      createRoot(document.getElementById('root')).render(React.createElement(Home));
+      createRoot(document.getElementById('root')).render(React.createElement(Home, { photoEnabled: false }));
     </script>
   </body>
 </html>

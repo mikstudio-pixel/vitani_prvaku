@@ -24,8 +24,9 @@ import { bindIntroSettings } from '@/lib/intro-settings';
 import { SimulationRun } from '@/lib/simulation-mode';
 import { InstallationAudio, bindInstallationAudio } from '@/lib/installation-audio';
 import { visualMixingProgress } from '@/lib/mixing-scenario';
+import { usePortraitCamera } from '@/components/use-portrait-camera';
 
-export default function Home({ sidePreview = false }: { sidePreview?: boolean }) {
+export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }) {
   useEffect(() => bindIntroSettings(), []);
   const calibrationSettings = useDisplayCalibration('center');
   const indicatorSettings = useDisplayCalibration('indicator');
@@ -48,6 +49,9 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
   const bowlRef = useRef<HTMLButtonElement>(null);
   const activePointer = useRef<number | null>(null);
   const pointerType = useRef('');
+  const portraitTaken = useRef(false);
+  const cancelPortraitHold = useRef(() => {});
+  const [hasPortrait, setHasPortrait] = useState(false);
   const liveTilt = useRef<Tilt>({ x: 0, y: 0 });
   const finaleDirection = useRef(1);
   const waveSettings = useRef({ strength: WAVE_STRENGTH.default as number, viscosity: WAVE_VISCOSITY.default as number });
@@ -73,6 +77,9 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     engineRef.current?.setTilt(value);
   }, []);
   const resetPortion = useCallback(({ waitForLift = false, render = false }: { waitForLift?: boolean; render?: boolean } = {}) => {
+    cancelPortraitHold.current();
+    portraitTaken.current = false; setHasPortrait(false);
+    if (photoEnabled) { wake.current.sleep(); setIntro(wake.current.frame(performance.now() / 1000)); }
     const engine = engineRef.current;
     if (!engine) return;
     engine.setPhysicsPaused(true);
@@ -82,7 +89,24 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     nativeActivity.current = null;
     setEasterEggActive(false);
     setIndicatorFrame(INDICATOR_READY);
-  }, []);
+  }, [photoEnabled]);
+  const capturePortrait = useCallback((image: ImageData) => {
+    const engine = engineRef.current;
+    if (!engine || !engine.running) throw new Error('Kapalina není připravená.');
+    resetPortion();
+    engine.setPortrait(image);
+    portraitTaken.current = true; setHasPortrait(true);
+    wake.current.start(performance.now() / 1000);
+    setIntro(wake.current.frame(performance.now() / 1000));
+  }, [resetPortion]);
+  const waitingForPortrait = photoEnabled && !hasPortrait && !simulating;
+  const photo = usePortraitCamera(waitingForPortrait && ready && !paused && !error, capturePortrait);
+  useEffect(() => { cancelPortraitHold.current = photo.cancel; }, [photo.cancel]);
+  const prepareCamera = () => {
+    // Both iOS requests originate in this operator gesture.
+    photo.prepare();
+    if (!sensorEngaged && window.DeviceOrientationEvent) void deviceTiltRef.current?.start();
+  };
   const release = () => {
     activePointer.current = null;
     if (!sensorEngaged) updateTilt({ x: 0, y: 0 });
@@ -126,6 +150,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       unbindMixing?.();
       unbindQr?.();
       unbindFrameRate?.();
+      resetPortion();
       event.preventDefault(); engine?.dispose(); setReady(false);
       engineRef.current = null;
       simulation.current = null; setSimulating(false); reportSimulationReady(false);
@@ -133,7 +158,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       setError('Grafika byla přerušena. Obnov aplikaci.');
     };
     const blurred = () => {
-      activePointer.current = null; updateTilt({ x: 0, y: 0 });
+      cancelPortraitHold.current(); activePointer.current = null; updateTilt({ x: 0, y: 0 });
     };
     const powerChanged = () => {
       const sleeping = document.hidden || isNativePaused();
@@ -145,7 +170,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       if (sleeping !== wasSleeping) {
         // Scenario and liquid always reset together, before any resumed frame.
         resetPortion();
-        if (!sleeping) wake.current.start(performance.now() / 1000);
+        if (!sleeping && (!photoEnabled || simulation.current)) wake.current.start(performance.now() / 1000);
       }
       engine?.setPaused(sleeping); setPaused(sleeping);
       wasSleeping = sleeping;
@@ -187,6 +212,8 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       setError(cause instanceof Error ? cause.message : 'Simulaci se nepodařilo spustit.');
     }
     canvas.addEventListener('webglcontextlost', lost);
+    const leave = () => { blurred(); resetPortion(); };
+    window.addEventListener('pagehide', leave);
     window.addEventListener('blur', blurred);
     window.addEventListener('vitani-prvaku:power', powerChanged);
     window.addEventListener('vitani-prvaku:simulation', simulate);
@@ -199,12 +226,13 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       engine?.dispose(); engineRef.current = null;
       simulation.current = null; setSimulating(false); reportSimulationReady(false);
       canvas.removeEventListener('webglcontextlost', lost);
+      window.removeEventListener('pagehide', leave);
       window.removeEventListener('blur', blurred);
       window.removeEventListener('vitani-prvaku:power', powerChanged);
       window.removeEventListener('vitani-prvaku:simulation', simulate);
       document.removeEventListener('visibilitychange', powerChanged);
     };
-  }, [quality, updateTilt, resetPortion]);
+  }, [quality, updateTilt, resetPortion, photoEnabled]);
 
   useEffect(() => { engineRef.current?.setRimMode(rimMode); }, [rimMode, ready, quality]);
 
@@ -218,7 +246,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     };
     animation = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animation);
-  }, [ready, paused, quality]);
+  }, [ready, paused, quality, hasPortrait]);
 
   useEffect(() => {
     if (paused) return;
@@ -241,6 +269,9 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
         liveTilt.current = { x: state.tiltX, y: state.tiltY };
         state.light = lightFromTilt(liveTilt.current);
         engine.setTilt(liveTilt.current);
+      }
+      if (photoEnabled && !portraitTaken.current && !run) {
+        engine.setPhysicsPaused(true); audio.current?.stop(); return;
       }
       // Keep the opening question through the side-panel ignition, then show ready.
       const previousStage = indicator.current.storyFrame.stage;
@@ -279,11 +310,11 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
     if (!ready) return;
     const timer = window.setInterval(publish, 1000 / 30);
     return () => window.clearInterval(timer);
-  }, [ready, paused, error, quality, resetPortion]);
+  }, [ready, paused, error, quality, resetPortion, photoEnabled]);
 
   return (
-    <main className="installation" data-version={APP_VERSION} data-wake-stage={intro.stage} data-easter-egg={easterEggActive ? 'bob' : undefined}>
-      {!isNativeHost() && <><AppRefresh /><DisplaySwitcher current="center" sidePreview={sidePreview} /></>}
+    <main className="installation" data-portrait={hasPortrait ? 'captured' : waitingForPortrait ? 'waiting' : undefined} data-camera={photo.state.phase} data-version={APP_VERSION} data-wake-stage={intro.stage} data-easter-egg={easterEggActive ? 'bob' : undefined}>
+      {!isNativeHost() && <><AppRefresh /><DisplaySwitcher current="center" /></>}
       <CalibrationPanel display="center" {...calibrationSettings} indicator={indicatorSettings} />
       <details className="simulation-panel installation-panel" data-operator-ui>
         <summary>Živé hodnoty</summary>
@@ -291,6 +322,14 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       </details>
       <details className="controls-panel installation-panel" data-operator-ui>
         <summary>Nastavení</summary>
+        {photoEnabled && <div className="portrait-controls">
+          <video ref={photo.videoRef} muted playsInline aria-label="Náhled přední kamery pro obsluhu" />
+          <p>{photo.state.message}</p>
+          {sensor.phase === 'error' && <p role="alert">{sensor.message} Klepnutím na Připravit kameru zkus pohyb znovu.</p>}
+          <button type="button" disabled={photo.state.phase === 'preparing'} onClick={prepareCamera}>Připravit kameru</button>
+          <button type="button" disabled={photo.state.phase === 'off'} onClick={photo.stop}>Vypnout kameru</button>
+          <button type="button" disabled={!hasPortrait} onClick={() => resetPortion({ render: true })}>Nový návštěvník</button>
+        </div>}
         <div className="wave-control">
           <label htmlFor="wave-strength">Vlny <output htmlFor="wave-strength">{waveStrength.toFixed(2).replace('.', ',')}×</output></label>
           <input
@@ -329,7 +368,7 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       <button
         ref={bowlRef} type="button" className="bowl" disabled={!ready}
         style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}
-        aria-label="Interaktivní mísa kaše. Klepnutím zapni pohyb iPadu, dvojím klepnutím nastav rovinu. Myší táhni po míse nebo použij šipky."
+        aria-label={waitingForPortrait ? 'Podrž prst jednu sekundu pro fotografii. Na klávesnici podrž mezerník nebo Enter.' : 'Interaktivní mísa kaše s portrétem. Dvojím klepnutím nastav rovinu. Myší táhni po míse nebo použij šipky.'}
         onClick={() => {
           // Keep the iOS permission request directly inside the user gesture.
           if (!sensorEngaged && pointerType.current !== 'mouse') void deviceTiltRef.current?.start();
@@ -337,6 +376,11 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
         onDoubleClick={() => { if (sensor.phase === 'active') deviceTiltRef.current?.calibrate(); }}
         onPointerDown={(event) => {
           pointerType.current = event.pointerType;
+          if (waitingForPortrait) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
+            photo.down(event.pointerId, event.clientX, event.clientY); return;
+          }
           if (sensorEngaged || (event.pointerType === 'mouse' && event.button !== 0) || activePointer.current !== null) return;
           // Touch starts motion through click; a desktop mouse controls the tray directly.
           if (event.pointerType !== 'mouse' && window.DeviceOrientationEvent) return;
@@ -344,15 +388,25 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
           event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
           movePointer(event.clientX, event.clientY);
         }}
-        onPointerMove={(event) => { if (event.pointerId === activePointer.current) movePointer(event.clientX, event.clientY); }}
-        onPointerUp={(event) => { if (event.pointerId === activePointer.current) release(); }}
-        onPointerCancel={release} onLostPointerCapture={release} onBlur={release}
+        onPointerMove={(event) => {
+          photo.move(event.pointerId, event.clientX, event.clientY);
+          if (event.pointerId === activePointer.current) movePointer(event.clientX, event.clientY);
+        }}
+        onPointerUp={(event) => { photo.up(event.pointerId); if (event.pointerId === activePointer.current) release(); }}
+        onPointerCancel={() => { photo.cancel(); release(); }}
+        onLostPointerCapture={(event) => { photo.up(event.pointerId); release(); }}
+        onBlur={() => { photo.cancel(); release(); }}
+        onContextMenu={(event) => event.preventDefault()}
+        onKeyUp={(event) => { if (event.key === 'Enter' || event.key === ' ') photo.up(-1); }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') pointerType.current = '';
+          if (event.key === 'Enter' || event.key === ' ') {
+            pointerType.current = '';
+            if (waitingForPortrait) { event.preventDefault(); if (!event.repeat) photo.down(-1); }
+          }
           const directions: Record<string, Tilt> = { ArrowLeft: { x: -0.13, y: 0 }, ArrowRight: { x: 0.13, y: 0 }, ArrowUp: { x: 0, y: -0.13 }, ArrowDown: { x: 0, y: 0.13 } };
           const direction = directions[event.key];
-          if (direction && !sensorEngaged) { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
-          if (event.key === 'Escape') { event.preventDefault(); deviceTiltRef.current?.stop(); updateTilt({ x: 0, y: 0 }); }
+          if (direction && !waitingForPortrait && !sensorEngaged) { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
+          if (event.key === 'Escape') { photo.cancel(); event.preventDefault(); deviceTiltRef.current?.stop(); updateTilt({ x: 0, y: 0 }); }
           if (event.key.toLowerCase() === 'c') deviceTiltRef.current?.calibrate();
           if (event.key.toLowerCase() === 'o') deviceTiltRef.current?.rotateAxes();
           if (event.key.toLowerCase() === 'r') resetPortion({ render: true });
@@ -360,14 +414,25 @@ export default function Home({ sidePreview = false }: { sidePreview?: boolean })
       >
         <span className="fluid-window" data-rim-mode={rimMode}>
           <canvas ref={canvasRef} className="fluid-canvas" aria-label="Světlá a tmavá kapalina se mícháním postupně spojují." />
-          {!paused && !easterEggActive && <MixingPrompt frame={indicatorFrame} />}
+          {waitingForPortrait && photo.state.phase === 'ready' && !paused && <span className="portrait-prompt">
+            <strong>{photo.progress > 0 ? 'Vydrž…' : 'Podrž prst 1 sekundu'}</strong>
+            <span>Vyfotíme tě a tvůj portrét se promění v kapalinu.</span>
+            <span className="portrait-progress" role="progressbar" aria-label="Držení pro fotografii" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(photo.progress * 100)}><span style={{ transform: `scaleX(${photo.progress})` }} /></span>
+            <small>Fotografie zůstává jen v paměti tohoto iPadu.</small>
+          </span>}
+          {!waitingForPortrait && !paused && !easterEggActive && <MixingPrompt frame={indicatorFrame} />}
         </span>
         <TiltRing tilt={liveTilt} wake={wake} story={indicator} finaleDirection={finaleDirection} running={ready && !paused && !error} />
       </button>
+      {waitingForPortrait && !paused && ready && !error && photo.state.phase !== 'ready' && <section className="portrait-setup" aria-live="polite">
+        <p>{photo.captureError || photo.state.message}</p>
+        <button type="button" disabled={photo.state.phase === 'preparing'} onClick={prepareCamera}>Připravit kameru</button>
+        {photo.state.phase === 'preparing' && <button type="button" onClick={photo.stop}>Zrušit</button>}
+        <small>Kameru před začátkem povolí obsluha. Snímky se neukládají ani neodesílají.</small>
+      </section>}
       <MixingIndicatorDot frame={indicatorFrame} calibration={indicatorSettings.calibration} paused={paused} />
       {error && <p className="installation-error" data-operator-ui role="alert">{error}</p>}
-      {!error && !simulating && sensor.phase === 'error' && <p className="installation-error" data-operator-ui role="alert">{sensor.message} Klepnutím na mísu zkus přístup znovu.</p>}
-      <output className="sr-only">{!ready ? 'Připravuji porci.' : sensorEngaged ? sensor.message : 'Klepni na mísu a povol pohyb. Myší můžeš táhnout přímo po míse.'}</output>
+      <output className="sr-only">{!ready ? 'Připravuji porci.' : waitingForPortrait ? photo.state.message : sensorEngaged ? sensor.message : 'Klepni na mísu a povol pohyb. Myší můžeš táhnout přímo po míse.'}</output>
     </main>
   );
 }

@@ -8,6 +8,7 @@ import { circleBoundary, circleMergeGroups } from './circle-boundary';
 import { EMULSION_SOURCES, separationReadiness } from './emulsion';
 import { AMBIENT_FLOW } from './ambient-flow';
 import { QR_SOURCES } from './qr-reveal';
+import { portraitMaterial } from './portrait-material';
 import { QR_SIZE, QR_EXTENT, QR_REVEAL_SECONDS, qrTextureData } from './qr-pattern';
 import { BOB_SIZE, BOB_EXTENT, bobTextureData } from './bob-pattern';
 import { BobGesture, BOB_SECONDS, BOB_TIMING } from './bob-easter-egg';
@@ -115,6 +116,9 @@ const SOURCES = {
   ...QR_SOURCES,
   ...TELEMETRY_SOURCES,
   ambientFlow: AMBIENT_FLOW,
+  portraitDisplay: `uniform sampler2D source;
+void main(){vec2 value=texture(source,uv).rg;fragColor=vec4(value.r/max(value.g,0.00001),0,0,1);}`,
+
   crestResponse: `uniform sampler2D previous;uniform sampler2D totals;uniform float stirring;uniform float dt;
 void main(){
  vec4 sum=texelFetch(totals,ivec2(0),0);float area=max(sum.b,0.00001);
@@ -460,6 +464,8 @@ export class FluidBowl {
   private targets: Target[] = [];
   private velocity: Pair;
   private dye: Pair;
+  private portraitDisplay: Target;
+  private hasPortrait = false;
   private qrPattern: Target;
   private qrElapsed = -1;
   private qrReleasing = false;
@@ -591,6 +597,7 @@ export class FluidBowl {
       }
       this.velocity = this.pair(this.simSize);
       this.dye = this.pair(this.dyeSize, true);
+      this.portraitDisplay = this.target(this.dyeSize / 4, true);
       this.qrPattern = this.target(QR_SIZE, true, 'r');
       if (options.easterEgg) {
         this.bobPattern = this.target(BOB_SIZE, true, 'r');
@@ -1015,6 +1022,13 @@ export class FluidBowl {
     const crestsEnabled = automaticCrests || this.effects.has('crests'), gridEnabled = this.effects.has('grid'), dotsEnabled = this.effects.has('dots'), flowEnabled = this.effects.has('flow');
     const crestMode = crestsEnabled || gridEnabled || dotsEnabled;
     let surface = this.surface.read, dye = this.dye.read, velocity = this.materialVelocity();
+    if (this.hasPortrait) {
+      // Average the fine light/dark halftone for display only. The full-resolution
+      // separated material still supplies transport and honest mixing telemetry.
+      this.draw('phaseNeighborhood', this.phaseNeighborhood.read, { phase: dye });
+      this.draw('portraitDisplay', this.portraitDisplay, { source: this.phaseNeighborhood.read });
+      dye = this.portraitDisplay;
+    }
     if (this.rimMode === 'hybrid' || this.rimMode === 'curved') {
       this.draw('padding', this.paddedSurface, { source: surface, extrapolateHeight: true, tangentVelocity: false });
       this.draw('padding', this.paddedDye, { source: dye, extrapolateHeight: false, tangentVelocity: false });
@@ -1035,11 +1049,23 @@ export class FluidBowl {
     this.draw('display', null, { dye, surface, features: this.features, crestState: this.crestState.read, automaticCrests, crestsEnabled, gridEnabled, dotsEnabled, flowEnabled, contoursEnabled: this.effects.has('contours'), heightEnabled: this.effects.has('height'), tilt: [this.tilt.x, -this.tilt.y] });
     if (flowEnabled) this.draw('flowDisplay', null, { particleState: this.particles.read, viewportSize: this.canvas.width });
   }
+  setPortrait(image: ImageData) {
+    if (this.disposed || this.paused || document.hidden) throw new Error('Kapalina není připravená na fotografii.');
+    const values = portraitMaterial(image, this.dyeSize);
+    // Replace the concentration itself; all existing transport, mixing and
+    // surface lighting act on the portrait, with no stationary image overlay.
+    this.clearTelemetry(); this.onTelemetry?.(null);
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.dye.read.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.dyeSize, this.dyeSize, gl.RGBA, gl.FLOAT, values);
+    this.hasPortrait = true;
+    this.anchorMaterial(); this.render();
+  }
   revealQr() {
     if (this.disposed || this.qrElapsed >= 0 || this.easterEggActive) return;
     this.qrResult = this.measuredMixing?.value ?? null;
     this.clearTelemetry();
-    this.qrElapsed = 0;
+    this.qrElapsed = 0; this.hasPortrait = false;
     this.qrReleasing = false;
     this.anchorMaterial();
   }
@@ -1055,7 +1081,7 @@ export class FluidBowl {
   }
   reset({ render = true }: { render?: boolean } = {}) {
     if (this.disposed) return;
-    this.elapsed = 0;
+    this.elapsed = 0; this.hasPortrait = false;
     this.bobElapsed = -1; this.bobGesture.reset();
     this.qrReleasing = false;
     this.qrElapsed = -1; this.qrResult = null;
