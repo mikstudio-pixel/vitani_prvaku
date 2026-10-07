@@ -1,22 +1,35 @@
-/** Convert a square camera frame to the liquid's dark concentration field.
- * Rows are flipped for WebGL. Exposure starts at zero; no photo is retained. */
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+import { BOB_SIZE } from './bob-pattern';
 
-export function portraitMaterial(image: Pick<ImageData, 'data' | 'width' | 'height'>, size: number) {
-  if (image.width < 1 || image.height < 1 || image.data.length !== image.width * image.height * 4) throw new Error('Fotografie nemá platný obraz.');
-  const result = new Float32Array(size * size * 4);
+/** The same coarse, two-phase mask used by the Bob easter egg.
+ * Average camera pixels into blocks, choose an exposure-adaptive threshold,
+ * and flip rows for the GPU. No frame or mask is persisted. */
+export function portraitPattern(image: Pick<ImageData, 'data' | 'width' | 'height'>, size: number = BOB_SIZE) {
+  if (image.width < 1 || image.height < 1 || image.data.length !== image.width * image.height * 4 || !Number.isInteger(size) || size < 1) throw new Error('Fotografie nemá platný obraz.');
+  const blocks = new Uint8Array(size * size), histogram = new Uint32Array(256);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const sourceX = Math.min(image.width - 1, Math.floor((x + .5) * image.width / size));
-    const sourceY = Math.min(image.height - 1, Math.floor((y + .5) * image.height / size));
-    const source = (sourceY * image.width + sourceX) * 4;
-    const luminance = (.2126 * image.data[source] + .7152 * image.data[source + 1] + .0722 * image.data[source + 2]) / 255;
-    const target = ((size - 1 - y) * size + x) * 4;
-    // Slight contrast keeps facial features legible in the liquid's soft light.
-    const dark = 1 - Math.max(0, Math.min(1, (luminance - .5) * 1.25 + .5));
-    // Halftone uses truly separate light/dark material. Continuous gray would
-    // be measured as already mixed before the visitor touched the iPad.
-    result[target] = dark > (BAYER[(y % 4) * 4 + x % 4] + .5) / 16 ? 1 : 0;
-    result[target + 3] = 1;
+    const left = Math.floor(x * image.width / size), top = Math.floor(y * image.height / size);
+    const right = Math.max(left + 1, Math.floor((x + 1) * image.width / size));
+    const bottom = Math.max(top + 1, Math.floor((y + 1) * image.height / size));
+    let sum = 0, count = 0;
+    for (let sy = top; sy < bottom; sy++) for (let sx = left; sx < right; sx++) {
+      const i = (sy * image.width + sx) * 4;
+      sum += .2126 * image.data[i] + .7152 * image.data[i + 1] + .0722 * image.data[i + 2]; count++;
+    }
+    const light = Math.round(sum / count); blocks[y * size + x] = light; histogram[light]++;
   }
-  return result;
+  // Otsu's threshold preserves facial contrast under different lighting.
+  let total = 0;
+  for (let i = 0; i < 256; i++) total += i * histogram[i];
+  let weight = 0, sum = 0, best = -1, threshold = 127;
+  for (let i = 0; i < 255; i++) {
+    weight += histogram[i]; sum += i * histogram[i];
+    const other = blocks.length - weight;
+    if (!weight || !other) continue;
+    const difference = sum / weight - (total - sum) / other;
+    const variance = weight * other * difference * difference;
+    if (variance > best) { best = variance; threshold = i; }
+  }
+  const values = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) values[(size - 1 - y) * size + x] = blocks[y * size + x] <= threshold ? 1 : 0;
+  return values;
 }

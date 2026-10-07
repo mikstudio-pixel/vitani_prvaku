@@ -2,437 +2,199 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FluidBowl, WAVE_STRENGTH, WAVE_VISCOSITY, type FluidStats, type RimMode } from '@/lib/fluid';
-import { AppRefresh } from '@/components/app-refresh';
-import { DisplaySwitcher } from '@/components/display-switcher';
 import { CalibrationPanel, useDisplayCalibration } from '@/components/display-calibration';
 import { APP_VERSION } from '@/lib/app-version';
 import { clampTilt, type Tilt } from '@/lib/tilt';
 import { registerPrototypeTools } from '@/lib/prototype-tools';
-import { DeviceTilt, SENSORS_OFF, type SensorState } from '@/lib/device-tilt';
-import { FluidReadout } from '@/components/fluid-readout';
-import type { FluidTelemetry } from '@/lib/fluid-telemetry';
-import { completeSession, completeSimulation, isNativeHost, isNativePaused, publishTrayState, reportSimulationReady } from '@/lib/native-host';
-import { storyWakeFrame, WakeIntro } from '@/lib/wake-intro';
-import { TiltRing } from '@/components/tilt-ring';
-import { MixingIndicatorDot, MixingPrompt } from '@/components/mixing-indicator';
-import { MixingIndicator, INDICATOR_READY } from '@/lib/mixing-indicator';
-import { lightFromTilt } from '@/lib/tilt-light';
-import { bindMixingSensitivity } from '@/lib/mixing-settings';
-import { bindQrAnimation } from '@/lib/qr-settings';
+import { DeviceTilt, SENSORS_OFF } from '@/lib/device-tilt';
 import { bindFrameRate } from '@/lib/frame-rate-settings';
-import { bindIntroSettings } from '@/lib/intro-settings';
-import { SimulationRun } from '@/lib/simulation-mode';
-import { InstallationAudio, bindInstallationAudio } from '@/lib/installation-audio';
-import { visualMixingProgress } from '@/lib/mixing-scenario';
 import { usePortraitCamera } from '@/components/use-portrait-camera';
+import { PortraitRing } from '@/components/portrait-ring';
+
+const FLASH_SECONDS = .8;
+type Phase = 'idle' | 'flash' | 'revealing' | 'holding' | 'dissolving';
 
 export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }) {
-  useEffect(() => bindIntroSettings(), []);
-  const calibrationSettings = useDisplayCalibration('center');
-  const indicatorSettings = useDisplayCalibration('indicator');
-  const indicator = useRef(new MixingIndicator());
-  const audio = useRef<InstallationAudio | null>(null);
-  useEffect(() => {
-    const player = new InstallationAudio('center');
-    audio.current = player;
-    const unbind = bindInstallationAudio(player);
-    return () => { audio.current = null; unbind(); };
-  }, []);
-  const simulation = useRef<SimulationRun | null>(null);
-  const [simulating, setSimulating] = useState(false);
-  const [indicatorFrame, setIndicatorFrame] = useState(INDICATOR_READY);
-  const nativeActivity = useRef<{ value: number; quiet?: number; at: number } | null>(null);
-  const { x, y, scale } = calibrationSettings.calibration;
+  const settings = useDisplayCalibration('center');
+  const { x, y, scale } = settings.calibration;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<FluidBowl | null>(null);
-  const deviceTiltRef = useRef<DeviceTilt | null>(null);
   const bowlRef = useRef<HTMLButtonElement>(null);
-  const activePointer = useRef<number | null>(null);
-  const pointerType = useRef('');
-  const portraitTaken = useRef(false);
-  const cancelPortraitHold = useRef(() => {});
-  const [hasPortrait, setHasPortrait] = useState(false);
+  const engine = useRef<FluidBowl | null>(null);
+  const device = useRef<DeviceTilt | null>(null);
+  const pending = useRef<{ image: ImageData; at: number } | null>(null);
+  const cancelHold = useRef(() => {});
+  const pointer = useRef<number | null>(null);
   const liveTilt = useRef<Tilt>({ x: 0, y: 0 });
-  const finaleDirection = useRef(1);
-  const waveSettings = useRef({ strength: WAVE_STRENGTH.default as number, viscosity: WAVE_VISCOSITY.default as number });
-  const initialized = useRef(false);
-  const wake = useRef(new WakeIntro());
-  const [intro, setIntro] = useState(() => new WakeIntro().frame(0));
-  const [error, setError] = useState('');
+  const [operator, setOperator] = useState(() => new URLSearchParams(location.search).get('operator') === '1');
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [flash, setFlash] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [easterEggActive, setEasterEggActive] = useState(false);
-  const [rimMode, setRimMode] = useState<RimMode>('curved');
-  const [waveStrength, setWaveStrength] = useState<number>(WAVE_STRENGTH.default);
-  const [waveViscosity, setWaveViscosity] = useState<number>(WAVE_VISCOSITY.default);
+  const [paused, setPaused] = useState(document.hidden);
+  const [error, setError] = useState('');
   const [quality, setQuality] = useState<'auto' | 'performance' | 'detail'>('auto');
   const [stats, setStats] = useState<FluidStats | null>(null);
-  const [telemetry, setTelemetry] = useState<FluidTelemetry | null>(null);
-  const [sensor, setSensor] = useState<SensorState>(SENSORS_OFF);
-  const sensorEngaged = sensor.phase !== 'off' && sensor.phase !== 'error';
-  const updateTilt = useCallback((next: Tilt) => {
-    if (simulation.current) return;
-    const value = clampTilt(next);
-    liveTilt.current = value;
-    engineRef.current?.setTilt(value);
+  const [rimMode, setRimMode] = useState<RimMode>('curved');
+  const [sensor, setSensor] = useState(SENSORS_OFF);
+  const [waveStrength, setWaveStrength] = useState<number>(WAVE_STRENGTH.default);
+  const [waveViscosity, setWaveViscosity] = useState<number>(WAVE_VISCOSITY.default);
+  const waveSettings = useRef({ strength: waveStrength, viscosity: waveViscosity });
+  const updateTilt = useCallback((value: Tilt) => {
+    liveTilt.current = clampTilt(value); engine.current?.setTilt(liveTilt.current);
   }, []);
-  const resetPortion = useCallback(({ waitForLift = false, render = false }: { waitForLift?: boolean; render?: boolean } = {}) => {
-    cancelPortraitHold.current();
-    portraitTaken.current = false; setHasPortrait(false);
-    if (photoEnabled) { wake.current.sleep(); setIntro(wake.current.frame(performance.now() / 1000)); }
-    const engine = engineRef.current;
-    if (!engine) return;
-    engine.setPhysicsPaused(true);
-    engine.reset({ render });
-    indicator.current.reset({ waitForLift });
-    audio.current?.reset();
-    nativeActivity.current = null;
-    setEasterEggActive(false);
-    setIndicatorFrame(INDICATOR_READY);
-  }, [photoEnabled]);
-  const capturePortrait = useCallback((image: ImageData) => {
-    const engine = engineRef.current;
-    if (!engine || !engine.running) throw new Error('Kapalina není připravená.');
-    resetPortion();
-    engine.setPortrait(image);
-    portraitTaken.current = true; setHasPortrait(true);
-    wake.current.start(performance.now() / 1000);
-    setIntro(wake.current.frame(performance.now() / 1000));
-  }, [resetPortion]);
-  const waitingForPortrait = photoEnabled && !hasPortrait && !simulating;
-  const photo = usePortraitCamera(waitingForPortrait && ready && !paused && !error, capturePortrait);
-  useEffect(() => { cancelPortraitHold.current = photo.cancel; }, [photo.cancel]);
-  const prepareCamera = () => {
-    // Both iOS requests originate in this operator gesture.
+  const reset = useCallback(() => {
+    cancelHold.current(); pending.current = null; pointer.current = null;
+    setPhase('idle'); setFlash(null); engine.current?.reset();
+  }, []);
+  const capture = useCallback((image: ImageData) => {
+    if (!engine.current?.running || engine.current.portraitActive || pending.current) return;
+    pending.current = { image, at: performance.now() }; setPhase('flash'); setFlash(0);
+  }, []);
+  const photo = usePortraitCamera(photoEnabled && ready && !paused && !error && phase === 'idle', capture);
+  useEffect(() => { cancelHold.current = photo.cancel; }, [photo.cancel]);
+  const prepare = () => {
     photo.prepare();
-    if (!sensorEngaged && window.DeviceOrientationEvent) void deviceTiltRef.current?.start();
-  };
-  const release = () => {
-    activePointer.current = null;
-    if (!sensorEngaged) updateTilt({ x: 0, y: 0 });
-  };
-  const movePointer = (clientX: number, clientY: number) => {
-    const box = bowlRef.current?.getBoundingClientRect();
-    if (box) updateTilt({ x: ((clientX - box.left) / box.width - 0.5) * 2.25, y: ((clientY - box.top) / box.height - 0.5) * 2.25 });
+    if (navigator.maxTouchPoints > 1 && window.DeviceOrientationEvent && sensor.phase !== 'active') void device.current?.start();
   };
 
   useEffect(() => {
-    const device = new DeviceTilt(updateTilt, setSensor);
-    deviceTiltRef.current = device;
-    if (isNativeHost()) void device.start();
-    return () => { device.dispose(); deviceTiltRef.current = null; };
+    const input = new DeviceTilt(updateTilt, setSensor); device.current = input;
+    return () => { input.dispose(); device.current = null; };
   }, [updateTilt]);
-
-  useEffect(() => registerPrototypeTools(
-    (value) => { deviceTiltRef.current?.stop(); updateTilt(value); },
-    () => { if (!engineRef.current || error) throw new Error('Simulace není připravená.'); resetPortion({ render: true }); },
-  ), [error, updateTilt, resetPortion]);
-
+  useEffect(() => registerPrototypeTools(value => { device.current?.stop(); updateTilt(value); }, reset), [updateTilt, reset]);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    let engine: FluidBowl | null = null;
-    let unbindMixing: (() => void) | undefined;
-    let unbindQr: (() => void) | undefined;
-    let unbindFrameRate: (() => void) | undefined;
-    let wasSleeping: boolean | null = null;
-    const simulate = (event: Event) => {
-      const enabled = (event as CustomEvent).detail;
-      if (typeof enabled !== 'boolean' || !engine) return;
-      simulation.current = enabled ? new SimulationRun() : null;
-      setSimulating(enabled);
-      liveTilt.current = { x: 0, y: 0 }; engine.setTilt(liveTilt.current);
-      resetPortion();
-      if (!enabled && !isNativePaused()) wake.current.start(performance.now() / 1000);
-      event.preventDefault();
-    };
+    let bowl: FluidBowl | null = null;
+    let unbind: (() => void) | undefined;
     const lost = (event: Event) => {
-      unbindMixing?.();
-      unbindQr?.();
-      unbindFrameRate?.();
-      resetPortion();
-      event.preventDefault(); engine?.dispose(); setReady(false);
-      engineRef.current = null;
-      simulation.current = null; setSimulating(false); reportSimulationReady(false);
-      deviceTiltRef.current?.stop();
-      setError('Grafika byla přerušena. Obnov aplikaci.');
+      event.preventDefault(); reset(); bowl?.dispose(); engine.current = null;
+      setReady(false); setError('Grafika byla přerušena. Obnov aplikaci nebo změň režim.');
     };
-    const blurred = () => {
-      cancelPortraitHold.current(); activePointer.current = null; updateTilt({ x: 0, y: 0 });
+    const visibility = () => {
+      if (document.hidden) reset();
+      bowl?.setPaused(document.hidden); setPaused(document.hidden);
     };
-    const powerChanged = () => {
-      const sleeping = document.hidden || isNativePaused();
-      if (sleeping !== wasSleeping) engine?.setPaused(true);
-      if (sleeping) {
-        simulation.current = null; setSimulating(false);
-        blurred(); wake.current.sleep();
-      }
-      if (sleeping !== wasSleeping) {
-        // Scenario and liquid always reset together, before any resumed frame.
-        resetPortion();
-        if (!sleeping && (!photoEnabled || simulation.current)) wake.current.start(performance.now() / 1000);
-      }
-      engine?.setPaused(sleeping); setPaused(sleeping);
-      wasSleeping = sleeping;
-      setIntro(wake.current.frame(performance.now() / 1000));
+    const blur = () => {
+      cancelHold.current(); pointer.current = null; updateTilt({ x: 0, y: 0 });
+      if (pending.current) { pending.current = null; setPhase('idle'); setFlash(null); }
     };
     try {
-      const params = new URLSearchParams(window.location.search);
-      const resolution = params.get('sim') === '160' ? 160 : params.get('sim') === '192' ? 192 : params.get('sim') === '256' ? 256 : params.get('sim') === '384' ? 384 : undefined;
-      const profile = quality === 'auto' ? (navigator.maxTouchPoints > 1 ? 'performance' : 'detail') : quality;
-      if (!initialized.current) {
-        waveSettings.current.strength = params.get('waves') === 'original' ? WAVE_STRENGTH.min : WAVE_STRENGTH.default;
-        initialized.current = true;
-      }
-      engine = new FluidBowl(canvas, {
-        native: isNativeHost(),
-        easterEgg: false,
-        resolution, materialResolution: params.get('material') === '512' ? 512 : params.get('material') === '384' ? 384 : undefined, quality: profile, onStats: setStats, onTelemetry: setTelemetry, automaticCrests: true,
+      const params = new URLSearchParams(location.search);
+      const profile = quality === 'auto' ? navigator.maxTouchPoints > 1 ? 'performance' : 'detail' : quality;
+      bowl = new FluidBowl(canvas, { easterEgg: false, quality: profile, onStats: setStats, automaticCrests: true,
         stirring: params.get('stir') !== '0', dissolving: params.get('dissolve') !== '0',
-        organicSeparation: params.get('organic') !== '0', ambientFlow: params.get('drift') !== '0',
-        boundary: params.get('boundary') === 'previous' ? 'previous' : 'merged',
-        waves: params.get('waves') === 'original' ? 'original' : 'higher',
-      });
-      engine.setPhysicsPaused(true);
-      engine.setWaveStrength(waveSettings.current.strength);
-      engine.setWaveViscosity(waveSettings.current.viscosity);
-      engine.setTilt(liveTilt.current);
-      engineRef.current = engine;
-      unbindMixing = bindMixingSensitivity(value => engine?.setMixingSensitivity(value));
-      unbindQr = bindQrAnimation(value => engine?.setQrAnimation(value));
-      unbindFrameRate = bindFrameRate(fps => engine?.setFrameRate(fps));
-      // eslint-disable-next-line react/react-compiler -- Match the control to the initial URL setting used by the external engine.
-      setWaveStrength(waveSettings.current.strength);
-      // eslint-disable-next-line react/react-compiler -- Reflect initialization of the external WebGL engine.
-      setError('');
-      setReady(true);
-      reportSimulationReady(true);
+        organicSeparation: params.get('organic') !== '0', ambientFlow: params.get('drift') !== '0' });
+      engine.current = bowl;
+      bowl.setWaveStrength(waveSettings.current.strength); bowl.setWaveViscosity(waveSettings.current.viscosity);
+      bowl.setTilt(liveTilt.current); unbind = bindFrameRate(fps => bowl?.setFrameRate(fps));
+      setError(''); setReady(true); visibility();
     } catch (cause) {
-      setReady(false);
-      setError(cause instanceof Error ? cause.message : 'Simulaci se nepodařilo spustit.');
+      setReady(false); setError(cause instanceof Error ? cause.message : 'Simulaci se nepodařilo spustit.');
     }
     canvas.addEventListener('webglcontextlost', lost);
-    const leave = () => { blurred(); resetPortion(); };
-    window.addEventListener('pagehide', leave);
-    window.addEventListener('blur', blurred);
-    window.addEventListener('vitani-prvaku:power', powerChanged);
-    window.addEventListener('vitani-prvaku:simulation', simulate);
-    document.addEventListener('visibilitychange', powerChanged);
-    powerChanged();
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('blur', blur); window.addEventListener('pagehide', reset);
     return () => {
-      unbindMixing?.();
-      unbindQr?.();
-      unbindFrameRate?.();
-      engine?.dispose(); engineRef.current = null;
-      simulation.current = null; setSimulating(false); reportSimulationReady(false);
+      pending.current = null; cancelHold.current(); unbind?.(); bowl?.dispose(); engine.current = null;
       canvas.removeEventListener('webglcontextlost', lost);
-      window.removeEventListener('pagehide', leave);
-      window.removeEventListener('blur', blurred);
-      window.removeEventListener('vitani-prvaku:power', powerChanged);
-      window.removeEventListener('vitani-prvaku:simulation', simulate);
-      document.removeEventListener('visibilitychange', powerChanged);
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('blur', blur); window.removeEventListener('pagehide', reset);
     };
-  }, [quality, updateTilt, resetPortion, photoEnabled]);
-
-  useEffect(() => { engineRef.current?.setRimMode(rimMode); }, [rimMode, ready, quality]);
-
+  }, [quality, reset, updateTilt]);
+  useEffect(() => { engine.current?.setRimMode(rimMode); }, [rimMode, quality, ready]);
   useEffect(() => {
     if (!ready || paused) return;
-    let animation = 0, stage = '';
+    let animation = 0;
     const tick = (now: number) => {
-      const frame = wake.current.frame(now / 1000);
-      if (stage !== frame.stage) { setIntro(frame); stage = frame.stage; }
-      if (frame.stage === 'orbit' || frame.stage === 'panels') animation = requestAnimationFrame(tick);
+      const frame = pending.current;
+      if (frame) {
+        const elapsed = (now - frame.at) / 1000;
+        if (elapsed < FLASH_SECONDS) setFlash(elapsed);
+        else {
+          pending.current = null; setFlash(null);
+          try { engine.current?.setPortrait(frame.image); }
+          catch (cause) { setError(cause instanceof Error ? cause.message : 'Fotografii se nepodařilo zobrazit.'); }
+        }
+      }
+      setPhase(pending.current ? 'flash' : engine.current?.portraitPhase ?? 'idle');
+      animation = requestAnimationFrame(tick);
     };
     animation = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animation);
-  }, [ready, paused, quality, hasPortrait]);
-
+  }, [ready, paused, quality]);
   useEffect(() => {
-    if (paused) return;
-    const publish = () => {
-      const engine = engineRef.current;
-      setEasterEggActive(engine?.easterEggActive ?? false);
-      if (!engine || !ready || !engine.running || error) {
-        audio.current?.stop();
-        setIndicatorFrame(indicator.current.step(performance.now() / 1000, null));
-        publishTrayState({ phase: 'unavailable', tiltX: 0, tiltY: 0, activity: 0, oil: 0, elapsed: 0 });
-        return;
-      }
-      const now = performance.now();
-      const state = { ...engine.getTrayState(), light: lightFromTilt(liveTilt.current), quiet: undefined as number | undefined, story: undefined as import('@/lib/native-host').StoryClock | undefined }, frame = wake.current.frame(now / 1000);
-      if (isNativeHost()) state.activity = nativeActivity.current && now - nativeActivity.current.at < 1000 ? nativeActivity.current.value : 0;
-      if (isNativeHost() && nativeActivity.current?.quiet != null && now - nativeActivity.current.at < 1000) state.quiet = nativeActivity.current.quiet + (now - nativeActivity.current.at) / 1000;
-      const run = simulation.current;
-      if (run) {
-        Object.assign(state, run.sample(now / 1000, indicator.current.storyFrame.stage));
-        liveTilt.current = { x: state.tiltX, y: state.tiltY };
-        state.light = lightFromTilt(liveTilt.current);
-        engine.setTilt(liveTilt.current);
-      }
-      if (photoEnabled && !portraitTaken.current && !run) {
-        engine.setPhysicsPaused(true); audio.current?.stop(); return;
-      }
-      // Keep the opening question through the side-panel ignition, then show ready.
-      const previousStage = indicator.current.storyFrame.stage;
-      const next = indicator.current.step(now / 1000, state, frame);
-      const story = indicator.current.storyFrame;
-      state.story = story;
-      if (previousStage !== 'standby' && story.stage === 'standby' && isNativeHost()) {
-        if (run?.complete('standby')) completeSimulation();
-        else completeSession();
-        return; // Native captures the outgoing screen before resetting the web UI.
-      }
-      engine.setFinaleStirring(story.stage === 'finishing');
-      finaleDirection.current = engine.finaleRotationDirection;
-      engine.setPhysicsPaused(frame.stage === 'waiting' || indicator.current.physicsPaused);
-      audio.current?.update({ ...story, activity: state.activity, progress: visualMixingProgress(state.mixed ?? null), available: true });
-      if (previousStage !== 'standby' && indicator.current.storyFrame.stage === 'standby') {
-        resetPortion({ waitForLift: true });
-        Object.assign(state, engine.getTrayState());
-      }
-      if (indicator.current.qrReady) engine.revealQr();
-      else if (next.phase === 'ready') engine.releaseQr();
-      setIndicatorFrame(previous => previous.phase === next.phase && previous.progress === next.progress && previous.prompt === next.prompt ? previous : next);
-      if (run?.complete(indicator.current.storyFrame.stage)) {
-        completeSimulation();
-        return;
-      }
-      const broadcastIntro = frame.stage === 'complete'
-        ? storyWakeFrame(indicator.current.storyFrame.stage, indicator.current.storyFrame.elapsed) : frame;
-      // V4 carries the actual calibrated tilt signal together with gyro/fluid data.
-      // Intro phase time replaces mixing while the story is waiting.
-      publishTrayState(broadcastIntro.stage === 'orbit' || broadcastIntro.stage === 'panels'
-        ? { ...state, phase: broadcastIntro.stage === 'orbit' ? 'waking' : 'introducing', elapsed: broadcastIntro.elapsed, mixed: null }
-        : state);
+    const key = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+      if (event.key.toLowerCase() === 'o') setOperator(value => !value);
+      if (event.key.toLowerCase() === 'r') reset();
     };
-    publish();
-    if (!ready) return;
-    const timer = window.setInterval(publish, 1000 / 30);
-    return () => window.clearInterval(timer);
-  }, [ready, paused, error, quality, resetPortion, photoEnabled]);
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  }, [reset]);
+  const release = () => { pointer.current = null; if (sensor.phase !== 'active') updateTilt({ x: 0, y: 0 }); };
+  const move = (clientX: number, clientY: number) => {
+    const box = bowlRef.current?.getBoundingClientRect();
+    if (box) updateTilt({ x: ((clientX - box.left) / box.width - .5) * 2.25, y: ((clientY - box.top) / box.height - .5) * 2.25 });
+  };
 
-  return (
-    <main className="installation" data-portrait={hasPortrait ? 'captured' : waitingForPortrait ? 'waiting' : undefined} data-camera={photo.state.phase} data-version={APP_VERSION} data-wake-stage={intro.stage} data-easter-egg={easterEggActive ? 'bob' : undefined}>
-      {!isNativeHost() && <><AppRefresh /><DisplaySwitcher current="center" /></>}
-      <CalibrationPanel display="center" {...calibrationSettings} indicator={indicatorSettings} />
-      <details className="simulation-panel installation-panel" data-operator-ui>
-        <summary>Živé hodnoty</summary>
-        <FluidReadout value={ready && !error ? telemetry : null} />
-      </details>
-      <details className="controls-panel installation-panel" data-operator-ui>
-        <summary>Nastavení</summary>
-        {photoEnabled && <div className="portrait-controls">
-          <video ref={photo.videoRef} muted playsInline aria-label="Náhled přední kamery pro obsluhu" />
-          <p>{photo.state.message}</p>
-          {sensor.phase === 'error' && <p role="alert">{sensor.message} Klepnutím na Připravit kameru zkus pohyb znovu.</p>}
-          <button type="button" disabled={photo.state.phase === 'preparing'} onClick={prepareCamera}>Připravit kameru</button>
-          <button type="button" disabled={photo.state.phase === 'off'} onClick={photo.stop}>Vypnout kameru</button>
-          <button type="button" disabled={!hasPortrait} onClick={() => resetPortion({ render: true })}>Nový návštěvník</button>
-        </div>}
-        <div className="wave-control">
-          <label htmlFor="wave-strength">Vlny <output htmlFor="wave-strength">{waveStrength.toFixed(2).replace('.', ',')}×</output></label>
-          <input
-            id="wave-strength" type="range" min={WAVE_STRENGTH.min} max={WAVE_STRENGTH.max} step={WAVE_STRENGTH.step}
-            value={waveStrength} disabled={!ready} aria-valuetext={`${waveStrength.toFixed(2).replace('.', ',')} násobek původní síly`}
-            onChange={(event) => {
-              const value = event.currentTarget.valueAsNumber;
-              waveSettings.current.strength = value; setWaveStrength(value); engineRef.current?.setWaveStrength(value);
-            }}
-          />
-          <label htmlFor="wave-viscosity" title="Vyšší viskozita zjemňuje drobné vlny a rozšiřuje hřebeny.">Viskozita <output htmlFor="wave-viscosity">{waveViscosity.toFixed(1).replace('.', ',')}×</output></label>
-          <input
-            id="wave-viscosity" type="range" min={WAVE_VISCOSITY.min} max={WAVE_VISCOSITY.max} step={WAVE_VISCOSITY.step}
-            value={waveViscosity} disabled={!ready} aria-valuetext={`${waveViscosity.toFixed(1).replace('.', ',')} násobek původní viskozity`}
-            onChange={(event) => {
-              const value = event.currentTarget.valueAsNumber;
-              waveSettings.current.viscosity = value; setWaveViscosity(value); engineRef.current?.setWaveViscosity(value);
-            }}
-          />
-          <label className="quality-control" htmlFor="fluid-quality">Režim
-            <select id="fluid-quality" value={quality} title="Změna režimu připraví novou porci; hodnoty sliderů zůstanou." onChange={(event) => {
-              setStats(null); setQuality(event.currentTarget.value as typeof quality);
-            }}>
-              <option value="auto">Automaticky</option><option value="performance">Úsporný</option><option value="detail">Detailní</option>
-            </select>
-          </label>
-          <output className="performance-status" aria-live="off">{stats ? `${stats.fps} FPS · ${stats.quality === 'performance' ? 'úsporný' : 'detailní'}` : 'Měřím FPS…'}</output>
-        </div>
-        <fieldset className="rim-switcher" aria-label="Okraj hladiny" disabled={!ready}>
-          <button type="button" aria-pressed={rimMode === 'curved'} onClick={() => setRimMode('curved')}>Plynulý okraj</button>
-          <button type="button" aria-pressed={rimMode === 'under'} onClick={() => setRimMode('under')}>Pod okrajem</button>
-          <button type="button" aria-pressed={rimMode === 'hybrid'} onClick={() => setRimMode('hybrid')}>Kompromis</button>
-          <button type="button" aria-pressed={rimMode === 'edge'} onClick={() => setRimMode('edge')}>U okraje</button>
-        </fieldset>
-      </details>
-      <button
-        ref={bowlRef} type="button" className="bowl" disabled={!ready}
-        style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}
-        aria-label={waitingForPortrait ? 'Podrž prst jednu sekundu pro fotografii. Na klávesnici podrž mezerník nebo Enter.' : 'Interaktivní mísa kaše s portrétem. Dvojím klepnutím nastav rovinu. Myší táhni po míse nebo použij šipky.'}
-        onClick={() => {
-          // Keep the iOS permission request directly inside the user gesture.
-          if (!sensorEngaged && pointerType.current !== 'mouse') void deviceTiltRef.current?.start();
-        }}
-        onDoubleClick={() => { if (sensor.phase === 'active') deviceTiltRef.current?.calibrate(); }}
-        onPointerDown={(event) => {
-          pointerType.current = event.pointerType;
-          if (waitingForPortrait) {
-            if (event.pointerType === 'mouse' && event.button !== 0) return;
-            event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
-            photo.down(event.pointerId, event.clientX, event.clientY); return;
-          }
-          if (sensorEngaged || (event.pointerType === 'mouse' && event.button !== 0) || activePointer.current !== null) return;
-          // Touch starts motion through click; a desktop mouse controls the tray directly.
-          if (event.pointerType !== 'mouse' && window.DeviceOrientationEvent) return;
-          event.preventDefault(); activePointer.current = event.pointerId;
-          event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus();
-          movePointer(event.clientX, event.clientY);
-        }}
-        onPointerMove={(event) => {
-          photo.move(event.pointerId, event.clientX, event.clientY);
-          if (event.pointerId === activePointer.current) movePointer(event.clientX, event.clientY);
-        }}
-        onPointerUp={(event) => { photo.up(event.pointerId); if (event.pointerId === activePointer.current) release(); }}
-        onPointerCancel={() => { photo.cancel(); release(); }}
-        onLostPointerCapture={(event) => { photo.up(event.pointerId); release(); }}
-        onBlur={() => { photo.cancel(); release(); }}
-        onContextMenu={(event) => event.preventDefault()}
-        onKeyUp={(event) => { if (event.key === 'Enter' || event.key === ' ') photo.up(-1); }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            pointerType.current = '';
-            if (waitingForPortrait) { event.preventDefault(); if (!event.repeat) photo.down(-1); }
-          }
-          const directions: Record<string, Tilt> = { ArrowLeft: { x: -0.13, y: 0 }, ArrowRight: { x: 0.13, y: 0 }, ArrowUp: { x: 0, y: -0.13 }, ArrowDown: { x: 0, y: 0.13 } };
-          const direction = directions[event.key];
-          if (direction && !waitingForPortrait && !sensorEngaged) { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
-          if (event.key === 'Escape') { photo.cancel(); event.preventDefault(); deviceTiltRef.current?.stop(); updateTilt({ x: 0, y: 0 }); }
-          if (event.key.toLowerCase() === 'c') deviceTiltRef.current?.calibrate();
-          if (event.key.toLowerCase() === 'o') deviceTiltRef.current?.rotateAxes();
-          if (event.key.toLowerCase() === 'r') resetPortion({ render: true });
-        }}
-      >
-        <span className="fluid-window" data-rim-mode={rimMode}>
-          <canvas ref={canvasRef} className="fluid-canvas" aria-label="Světlá a tmavá kapalina se mícháním postupně spojují." />
-          {waitingForPortrait && photo.state.phase === 'ready' && !paused && <span className="portrait-prompt">
-            <strong>{photo.progress > 0 ? 'Vydrž…' : 'Podrž prst 1 sekundu'}</strong>
-            <span>Vyfotíme tě a tvůj portrét se promění v kapalinu.</span>
-            <span className="portrait-progress" role="progressbar" aria-label="Držení pro fotografii" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(photo.progress * 100)}><span style={{ transform: `scaleX(${photo.progress})` }} /></span>
-            <small>Fotografie zůstává jen v paměti tohoto iPadu.</small>
-          </span>}
-          {!waitingForPortrait && !paused && !easterEggActive && <MixingPrompt frame={indicatorFrame} />}
-        </span>
-        <TiltRing tilt={liveTilt} wake={wake} story={indicator} finaleDirection={finaleDirection} running={ready && !paused && !error} />
-      </button>
-      {waitingForPortrait && !paused && ready && !error && photo.state.phase !== 'ready' && <section className="portrait-setup" aria-live="polite">
+  return <main className="installation" data-portrait={phase} data-camera={photo.state.phase} data-version={APP_VERSION}>
+    {/* Keep the video mounted and playing when the operator closes setup. */}
+    <video ref={photo.videoRef} muted playsInline className={operator ? 'camera-preview' : 'camera-source'} aria-label="Náhled kamery pro obsluhu" aria-hidden={!operator} />
+    {operator && <>
+      <CalibrationPanel display="center" {...settings} />
+      <section className="portrait-operator" aria-label="Nastavení obsluhy">
         <p>{photo.captureError || photo.state.message}</p>
-        <button type="button" disabled={photo.state.phase === 'preparing'} onClick={prepareCamera}>Připravit kameru</button>
-        {photo.state.phase === 'preparing' && <button type="button" onClick={photo.stop}>Zrušit</button>}
-        <small>Kameru před začátkem povolí obsluha. Snímky se neukládají ani neodesílají.</small>
-      </section>}
-      <MixingIndicatorDot frame={indicatorFrame} calibration={indicatorSettings.calibration} paused={paused} />
-      {error && <p className="installation-error" data-operator-ui role="alert">{error}</p>}
-      <output className="sr-only">{!ready ? 'Připravuji porci.' : waitingForPortrait ? photo.state.message : sensorEngaged ? sensor.message : 'Klepni na mísu a povol pohyb. Myší můžeš táhnout přímo po míse.'}</output>
-    </main>
-  );
+        {error && <p role="alert">{error}</p>}
+        {sensor.phase === 'error' && <p>{sensor.message}</p>}
+        <button type="button" onClick={prepare} disabled={photo.state.phase === 'preparing'}>Připravit kameru</button>
+        <button type="button" onClick={photo.stop}>Vypnout kameru</button>
+        <button type="button" onClick={reset}>Nový návštěvník</button>
+        <button type="button" onClick={() => setOperator(false)}>Skrýt obsluhu</button>
+        <label>Režim <select value={quality} onChange={event => { reset(); setStats(null); setQuality(event.target.value as typeof quality); }}>
+          <option value="auto">Automaticky</option><option value="performance">Úsporný</option><option value="detail">Detailní</option>
+        </select></label>
+        <label>Vlny <input type="range" min={WAVE_STRENGTH.min} max={WAVE_STRENGTH.max} step={WAVE_STRENGTH.step} value={waveStrength} onChange={event => {
+          const value = event.currentTarget.valueAsNumber; setWaveStrength(value); waveSettings.current.strength = value; engine.current?.setWaveStrength(value);
+        }} /></label>
+        <label>Viskozita <input type="range" min={WAVE_VISCOSITY.min} max={WAVE_VISCOSITY.max} step={WAVE_VISCOSITY.step} value={waveViscosity} onChange={event => {
+          const value = event.currentTarget.valueAsNumber; setWaveViscosity(value); waveSettings.current.viscosity = value; engine.current?.setWaveViscosity(value);
+        }} /></label>
+        <label>Okraj <select value={rimMode} onChange={event => setRimMode(event.target.value as RimMode)}>
+          <option value="curved">Plynulý</option><option value="under">Pod okrajem</option><option value="hybrid">Kompromis</option><option value="edge">U okraje</option>
+        </select></label>
+        {stats && <p>{stats.fps} FPS</p>}
+      </section>
+    </>}
+    <button ref={bowlRef} type="button" className="bowl" disabled={!ready} style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}
+      aria-label="Podrž prst jednu sekundu pro portrét v kapalině."
+      onPointerDown={event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId);
+        if (photoEnabled && photo.state.phase !== 'ready') { prepare(); return; }
+        photo.down(event.pointerId, event.clientX, event.clientY);
+        if (event.pointerType === 'mouse' && pointer.current === null) pointer.current = event.pointerId;
+      }}
+      onPointerMove={event => {
+        photo.move(event.pointerId, event.clientX, event.clientY);
+        if (event.pointerId === pointer.current && sensor.phase !== 'active') move(event.clientX, event.clientY);
+      }}
+      onPointerUp={event => { photo.up(event.pointerId); if (event.pointerId === pointer.current) release(); }}
+      onPointerCancel={() => { photo.cancel(); release(); }}
+      onLostPointerCapture={event => { photo.up(event.pointerId); if (event.pointerId === pointer.current) release(); }}
+      onBlur={() => { photo.cancel(); release(); }} onContextMenu={event => event.preventDefault()}
+      onDoubleClick={() => device.current?.calibrate()}
+      onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') photo.up(-1); }}
+      onKeyDown={event => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          if (!event.repeat) { if (photo.state.phase !== 'ready') prepare(); else photo.down(-1); }
+        }
+        const directions: Record<string, Tilt> = { ArrowLeft: { x: -.13, y: 0 }, ArrowRight: { x: .13, y: 0 }, ArrowUp: { x: 0, y: -.13 }, ArrowDown: { x: 0, y: .13 } };
+        const direction = directions[event.key];
+        if (direction && sensor.phase !== 'active') { event.preventDefault(); updateTilt({ x: liveTilt.current.x + direction.x, y: liveTilt.current.y + direction.y }); }
+        if (event.key === 'Escape') { photo.cancel(); device.current?.stop(); release(); }
+      }}>
+      <span className="fluid-window" data-rim-mode={rimMode}><canvas ref={canvasRef} className="fluid-canvas" aria-label="Živá simulace světlé a tmavé kapaliny" /></span>
+      <PortraitRing progress={photo.progress} flash={flash} />
+    </button>
+  </main>;
 }

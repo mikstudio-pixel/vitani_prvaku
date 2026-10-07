@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="cs" class="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) aside {visibility:hidden}</style></head>
 <body><div id="root"></div><aside style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <output id="result">Umělá kamera; nejprve ji připravte.</output></aside>
 <script type="module">
   import React from 'react';
@@ -30,20 +30,21 @@
     try {
       assert(root.dataset.camera === 'ready', 'Nejprve připravte umělou kameru');
       pointer('pointerdown', 9001); await wait(250); pointer('pointerup', 9001); await wait(1000);
-      assert(root.dataset.portrait === 'waiting', 'Short touch must not take a photograph');
+      assert(root.dataset.portrait === 'idle', 'Short touch must not take a photograph');
       pointer('pointerdown', 9002); pointer('pointermove', 9002, 250, 200); await wait(1200); pointer('pointerup', 9002);
-      assert(root.dataset.portrait === 'waiting', 'Dragging must cancel');
+      assert(root.dataset.portrait === 'idle', 'Dragging must cancel');
       pointer('pointerdown', 9003); pointer('pointerdown', 9004); await wait(1200); pointer('pointerup', 9003); pointer('pointerup', 9004);
-      assert(root.dataset.portrait === 'waiting', 'Two fingers must cancel');
-      pointer('pointerdown', 9005); await wait(1300); pointer('pointerup', 9005);
-      assert(root.dataset.portrait === 'captured', 'A one-second hold must take a photograph');
+      assert(root.dataset.portrait === 'idle', 'Two fingers must cancel');
+      pointer('pointerdown', 9005); await wait(1100); pointer('pointerup', 9005);
+      assert(root.dataset.portrait === 'flash', 'A one-second hold must take a photograph');
       result.textContent = 'První portrét vyfotografován. Ověřuji dalšího návštěvníka…';
-      await wait(2000);
+      await wait(4000);
+      assert(root.dataset.portrait === 'holding', 'Portrait must emerge after the flash');
       bowl.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'r' })); await wait(150);
-      assert(root.dataset.portrait === 'waiting', 'Reset must wait for another photograph');
+      assert(root.dataset.portrait === 'idle', 'Reset must wait for another photograph');
       assert(root.dataset.camera === 'ready', 'Camera must remain warm between visitors');
-      pointer('pointerdown', 9006); await wait(1300); pointer('pointerup', 9006);
-      assert(root.dataset.portrait === 'captured', 'Second visitor must get a new photograph');
+      pointer('pointerdown', 9006); await wait(1100); pointer('pointerup', 9006);
+      assert(root.dataset.portrait === 'flash', 'Second visitor must get a new photograph');
       result.textContent = 'PASS: short touch, drag, multiple fingers, one-second capture, reset, second visitor';
     } catch (error) { result.textContent = `FAIL: ${error.message}`; console.error(error); }
   };

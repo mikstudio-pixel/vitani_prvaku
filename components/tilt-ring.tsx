@@ -50,6 +50,10 @@ export function TiltRing({ tilt, wake, story, finaleDirection, running, preview 
     return () => cancelAnimationFrame(animation);
   }, [running, tilt, wake, story, finaleDirection]);
 
+  return <LedRing svg={svg} levels={levels ?? undefined} />;
+}
+
+export function LedRing({ svg, levels }: { svg?: RefObject<SVGSVGElement | null>; levels?: { light: number; peak: number }[] }) {
   return <svg ref={svg} className="tilt-ring" viewBox="0 0 200 200" aria-hidden="true">
     {angles.map(angle => <path key={angle} d={shape} className="led-housing" transform={`rotate(${angle} 100 100)`} />)}
     {/* Two shared glow passes, rather than a separate GPU filter for every LED. */}

@@ -12,38 +12,36 @@ Production builds and previews default to `/vitani_prvaku/`.
 Set `NEXT_PUBLIC_APP_VERSION` to the release commit;
 `NEXT_PUBLIC_BASE_PATH` can explicitly override the build path. `npm run preview` serves `dist`.
 
-Before the first visitor, press **Připravit kameru** and allow the front camera
-and device motion in Safari. HTTPS is required; GitHub Pages provides it. The
-operator can check framing in **Nastavení**. Keep the screen/front camera facing
-the visitor and provide even lighting. The preview is square and mirrored like
-a selfie; the bowl clips its corners.
+## Event flow
 
-A visitor holds one finger on the bowl for one continuous second. Releasing
-sooner, dragging more than 24 CSS pixels, using multiple fingers, losing focus
-or hiding the page cancels the capture. Space/Enter can be held on a keyboard.
-The captured black-and-white portrait becomes the light/dark concentration of
-the actual liquid, then deforms and disperses under the existing mixing flow.
-A fine halftone preserves facial shades while starting with separate material;
-a gray photograph must not count as already mixed. Existing intro, sounds,
-mixing rules and final QR remain.
+The visitor view contains only a continuously running liquid simulation and its
+24 LEDs. There are no instructions, countdowns, story panels, sounds or final QR.
+Open `?operator=1` before the event, press **Připravit kameru**, allow the front
+camera and device motion, check framing, then press **Skrýt obsluhu**. The camera
+stays warm when this panel closes. The O key also toggles operator controls.
+On the plain visitor URL, the first touch requests camera permission directly;
+start the one-second hold after permission is granted. HTTPS is required.
 
-Frames are processed in memory on the device: no upload, download, photo storage,
-microphone or face recognition. The active camera stays ready between visitors;
-Safari displays its camera-use indicator. A new portion, automatic scenario
-restart, quality change or page exit clears the previous portrait. **Nový
-návštěvník** also clears it immediately. Hiding/leaving the page stops the camera;
-prepare it again after returning. **Vypnout kameru** stops it manually. A pending
-permission request can be cancelled; any stream that arrives later is stopped.
-Actual Safari camera permissions, framing and performance must still be checked
-on the event's iPad before use.
+One continuous finger hold fills the LED ring clockwise over one second. A short
+touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
+Once full, the ring flashes twice. The square mirrored camera frame is averaged
+into a **90 × 90 binary mask**, with an adaptive brightness threshold. It uses
+the same mask resolution and GPU gathering shader as the Bob easter egg.
+The current liquid rearranges into the portrait over three seconds, holds for
+three seconds, then dissolves over two seconds back into the previous liquid.
+The next visitor can then start automatically. No image overlay is used.
 
-After the photograph, desktop users can drag the bowl or use arrow keys. The center view owns the real fluid simulation and measured mixing result.
-The left/right views are visual previews: local sensors animate their pose,
-while the Mix/Still demo controls show the full story without fabricating a
-measured mixture from motion. They do not synchronize with the exhibition's
-native iPads or with separate web devices. Native BLE, kiosk power controls, native
-updates and the Mac operator panel are not included. No offline service worker
-is installed; loading the site requires an internet connection.
+Frames and masks remain in device memory; nothing is uploaded, saved or sent to
+face recognition. Completing the portrait clears its GPU mask. Reset, quality
+change and page exit clear the active image; hiding/leaving the page also stops
+the camera. Prepare it again after returning. **Nový návštěvník** or R resets
+immediately. Space/Enter can be held for capture; mouse dragging and arrow keys
+control tilt, while the iPad uses its gyroscope. Provide even lighting and test
+actual Safari permission, framing and performance on the event iPad.
+
+This is a single web bowl. Old `display=left/right` URLs show the same bowl.
+Native BLE, native updates and the Mac operator panel are excluded. No offline
+service worker is installed; loading the site requires an internet connection.
 
 ## Isolation and releases
 
@@ -66,29 +64,12 @@ Neither building nor deploying this repository sends updates to native iPads.
 To roll back, revert the release change in this repository and redeploy.
 Never select this folder as an update package in the exhibition's Mac panel.
 
-The initial copy preserves the existing artwork, fonts, sound assets and QR
-link. Event-specific content has not yet been changed. The combined final message
-and twenty-second restart are preserved; QR reveal settings are limited to
-5–20 seconds so they fit the final countdown. Asset provenance remains
-in `web/sounds/README.md` and the font license files in `public/fonts/`; verify
-that the event's licenses cover public web use before advertising the site.
+Asset provenance remains in `web/sounds/README.md` and the font license files
+in `public/fonts/`. Legacy exhibition modules and assets remain in the source,
+but are not part of the visitor flow.
 
-For the browser recovery regression, start `npm run dev` and open
-`/tests/browser-recovery.html` on the printed local port. The fixture deliberately
-fails the first WebGL allocation and denies motion permission. Select Úsporný
-in Nastavení: the graphics error must disappear and the bowl must become active.
-Then select Detailní: the third allocation deliberately fails, disabling the
-bowl while the quality selector stays available. Select Úsporný again to recover.
-Press Enter on the bowl to deny sensors, then use arrow keys; the scenario must
-still reach the mixing prompt. This fixture is not included in the Pages build.
-
-The local-only `/tests/browser-repeat.html` fixture runs three consecutive gesture restarts with the material physics paused, using the real WebGL bowl and scenario indicator. Each reset clears input activity; circular browser input must leave standby without moving the frozen material.
-
-The local-only `/tests/browser-tilt.html?display=left` (or `right`) fixture sends five seconds of tilt readings with missing compass yaw. The side display must leave standby and identify its local gyroscope as the data source.
-
-The local-only `/tests/browser-portrait.html` uses a synthetic canvas camera,
-never the real camera. It exercises the production center view, one-second
-visitor capture, readiness, reset and consecutive visitors.
-`/tests/browser-portrait-fluid.html` verifies the real GPU portrait upload,
-starting mixing measurement, transport and reset using a synthetic portrait.
+Local-only `/tests/browser-portrait.html?operator=1` uses a synthetic canvas
+camera, never hardware. It exercises cancellation, capture, the flash/reveal
+sequence, reset and consecutive visitors. `/tests/browser-portrait-fluid.html`
+exercises the actual GPU mask, gradual gathering, dissolve and reset.
 Neither fixture is included in the Pages build.

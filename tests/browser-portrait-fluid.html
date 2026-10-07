@@ -12,21 +12,23 @@
   const material = () => { const values = new Float32Array(bowl.dye.read.size ** 2 * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, bowl.dye.read.buffer); gl.readPixels(0, 0, bowl.dye.read.size, bowl.dye.read.size, gl.RGBA, gl.FLOAT, values); return values; };
   const difference = (a, b) => { let sum = 0; for (let i = 0; i < a.length; i += 4) sum += Math.abs(a[i] - b[i]); return sum / (a.length / 4); };
   try {
-    bowl.setPhysicsPaused(true); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512));
     const before = material();
-    const readyAt = performance.now(); while (performance.now() - readyAt < 1000) await frame();
-    assert((bowl.getTrayState().mixed ?? 1) < .01, 'Fresh portrait must be measured as unmixed');
-    assert(difference(before, material()) === 0, 'Intro must preserve the portrait');
-    // Leave the portrait visible for human inspection before testing transport.
-    output.textContent = 'Portrait uploaded upright. Waiting, then testing liquid transport…';
+    bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512));
+    bowl.setPaused(true);
+    assert(difference(before, material()) === 0, 'Capture must not replace the current liquid');
+    for (let i = 0; i < 100; i++) bowl.stepMaterial(1 / 30);
+    assert(bowl.portraitPhase === 'holding', 'Portrait must emerge gradually');
+    assert(difference(before, material()) > .05, 'The guide must rearrange the actual material');
+    bowl.render();
+    output.textContent = 'Pixelated portrait gathered from the liquid. Waiting before dissolve…';
     const holdAt = performance.now(); while (performance.now() - holdAt < 4000) await frame();
-    bowl.setPhysicsPaused(false);
-    const start = performance.now(); while (performance.now() - start < 3500) { const now = await frame(); const t = (now - start) / 1000; bowl.setTilt({ x: .7 * Math.cos(t * 4), y: .7 * Math.sin(t * 4) }); }
-    assert(difference(before, material()) > .1, 'Liquid flow must change the portrait material');
-    bowl.setPhysicsPaused(true); bowl.reset();
-    assert(difference(before, material()) > .2, 'Reset must remove the portrait');
-    assert(gl.getError() === gl.NO_ERROR, 'GPU upload and transport must be error free');
-    output.textContent = 'PASS: portrait upload, zero starting progress, frozen intro, real liquid transport, reset';
+    for (let i = 0; i < 150 && bowl.portraitActive; i++) bowl.stepMaterial(1 / 30);
+    assert(bowl.portraitPhase === 'idle', 'The next visitor must become available automatically');
+    assert(difference(before, material()) < .001, 'Dissolve must return to the previous fluid field');
+    bowl.setPaused(false); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512)); bowl.reset();
+    assert(!bowl.portraitActive, 'Reset must discard the portrait');
+    assert(gl.getError() === gl.NO_ERROR, 'GPU mask and gathering must be error free');
+    output.textContent = 'PASS: continuous fluid, guided reveal, dissolve, repeat readiness, reset';
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
   finally { bowl.dispose(); }
 </script></body></html>
