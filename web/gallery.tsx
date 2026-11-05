@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LoaderCircle, X } from 'lucide-react';
 import { deletePortrait, deviceAccess, portraitBackend, type PortraitRow } from '@/lib/portrait-backend';
 import { APP_VERSION } from '@/lib/app-version';
-import { galleryLayout } from '@/lib/gallery-layout';
+import { PortraitStream } from './portrait-stream';
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-function Portrait({ row, canDelete, onDeleted, style }: { row: PortraitRow; canDelete: boolean; onDeleted: (id: string) => void; style: CSSProperties }) {
+/** Download one visible portrait and keep deletion errors attached to its controls. */
+function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: boolean; onDeleted: (id: string) => void }) {
   const [url, setUrl] = useState(''), [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState('');
@@ -24,7 +25,7 @@ function Portrait({ row, canDelete, onDeleted, style }: { row: PortraitRow; canD
     catch { setDeleteError('Smazání selhalo. Zkus to znovu.'); }
     finally { setDeleting(false); }
   };
-  return <figure className="gallery-portrait" style={style} tabIndex={canDelete ? 0 : undefined}
+  return <figure className="gallery-portrait" aria-busy={deleting || undefined} tabIndex={canDelete ? 0 : undefined}
     onPointerDown={event => { if (canDelete && event.pointerType !== 'mouse') event.currentTarget.focus(); }}>{url ? <img src={url} alt="Portrét návštěvníka" /> : failed ?
     <button className="gallery-retry" onClick={() => setAttempt(value => value + 1)}>Načíst znovu</button> : <span aria-label="Načítám portrét" />}
     {canDelete && <button className="gallery-delete" aria-label="Smazat portrét" title={deleteError || 'Smazat portrét'} disabled={deleting} onClick={() => { void remove(); }}>
@@ -33,23 +34,14 @@ function Portrait({ row, canDelete, onDeleted, style }: { row: PortraitRow; canD
     {deleteError && <output className="gallery-delete-error" role="alert">{deleteError}</output>}
   </figure>;
 }
+/** Reconcile the private archive through Realtime and polling, then feed the bounded stream. */
 export function Gallery() {
   const [rows, setRows] = useState<PortraitRow[]>([]), [status, setStatus] = useState('Připojuji galerii…'), [authorized, setAuthorized] = useState(false);
-  const grid = useRef<HTMLDivElement>(null);
   const changes = useRef(0);
-  const [bounds, setBounds] = useState({ width: 0, height: 0 }), [canDelete, setCanDelete] = useState(false);
-  const layout = galleryLayout(rows.length, bounds.width, bounds.height);
-  const topSpace = rows.length ? Math.max(0, (bounds.height - layout.rows * layout.size - (layout.rows - 1) * layout.gap) / 2) : 0;
+  const [canDelete, setCanDelete] = useState(false);
   const onDeleted = useCallback((id: string) => {
     ++changes.current;
     setRows(previous => previous.filter(row => row.id !== id));
-  }, []);
-  useEffect(() => {
-    const element = grid.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setBounds({ width: entry.contentRect.width, height: entry.contentRect.height }));
-    observer.observe(element);
-    return () => observer.disconnect();
   }, []);
   useEffect(() => {
     let active = true, channel: ReturnType<typeof portraitBackend.channel> | null = null, timer: ReturnType<typeof setInterval> | null = null;
@@ -97,10 +89,8 @@ export function Gallery() {
     return () => { active = false; subscription.data.subscription.unsubscribe(); if (timer) clearInterval(timer); if (channel) void portraitBackend.removeChannel(channel); };
   }, [onDeleted]);
   return <main className="portrait-gallery" data-version={APP_VERSION}>
-    <h1 className="gallery-title" style={{ '--gallery-top-space': `${topSpace}px` } as CSSProperties}>Digitální prváci</h1>
-    <div ref={grid} className="gallery-grid" style={{ gridTemplateColumns: `repeat(${layout.columns * 2}, ${Math.max(0, (layout.size - layout.gap) / 2)}px)`, gridTemplateRows: `repeat(${layout.rows}, ${layout.size}px)`, gap: layout.gap }}>
-      {rows.map((row, index) => <Portrait key={row.id} row={row} canDelete={canDelete} onDeleted={onDeleted} style={{ gridColumn: `${layout.positions[index].column} / span 2`, gridRow: layout.positions[index].row }} />)}
-    </div>
+    <h1 className="gallery-title"><span>Digitální</span> <span>prváci</span></h1>
+    <PortraitStream rows={rows}>{row => <Portrait row={row} canDelete={canDelete} onDeleted={onDeleted} />}</PortraitStream>
     {!rows.length && <div className="gallery-empty"><p>{status || 'Čekám na první portrét…'}</p>{!authorized && <a href={`${base}/pripojeni/`}>Připojit zařízení</a>}</div>}
     {rows.length > 0 && status && <output className="gallery-status">{status}</output>}
     <a className="gallery-version" href={`${base}/pripojeni/`} title="Připojení zařízení">v {APP_VERSION.slice(0, 7)}</a>

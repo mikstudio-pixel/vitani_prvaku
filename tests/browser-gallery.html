@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Poletující galerie — test</title></head>
+<body><div id="root"></div><script type="module">
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { PortraitStream } from '../web/portrait-stream';
+import '../app/globals.css';
+const h = React.createElement;
+const initial = Array.from({ length: 1000 }, (_, index) => ({ id: String(index), created_at: new Date(Date.now() - index * 10000).toISOString() }));
+function App() {
+  const [rows, setRows] = useState(initial);
+  return h('main', { className: 'portrait-gallery' },
+    h('h1', { className: 'gallery-title' }, h('span', null, 'Digitální'), ' ', h('span', null, 'prváci')),
+    h(PortraitStream, { rows }, row => h('figure', { className: 'gallery-portrait', tabIndex: 0 },
+      h('svg', { viewBox: '0 0 100 100', style: { position: 'absolute', inset: '3.5%', width: '93%', height: '93%', borderRadius: '50%', background: '#ddd' } },
+        h('ellipse', { cx: 50, cy: 47, rx: 28, ry: 35, fill: '#555' }),
+        h('circle', { cx: 40, cy: 40, r: 4, fill: '#eee' }), h('circle', { cx: 60, cy: 40, r: 4, fill: '#eee' }),
+        h('path', { d: 'M38 60 Q50 73 62 60', fill: 'none', stroke: '#eee', strokeWidth: 4 }),
+        h('text', { x: 50, y: 94, textAnchor: 'middle', fontSize: 10, fill: '#111' }, row.id)))),
+    h('button', { id: 'add-portrait', style: { position: 'fixed', bottom: 8, left: 8, zIndex: 10, color: '#111', background: '#CDDC29', padding: 8 },
+      onClick: () => setRows(previous => [...previous, { id: `new-${previous.length}`, created_at: new Date().toISOString() }]) }, 'Přidat nový portrét'));
+}
+createRoot(document.getElementById('root')).render(h(App));
+</script></body></html>
