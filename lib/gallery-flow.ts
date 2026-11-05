@@ -4,6 +4,7 @@ export type PortraitFlight = {
   key: number;
   slot: number;
   expiresAt: number;
+  protectedUntil: number;
   duration: number;
   delay: number;
   x: number;
@@ -60,17 +61,18 @@ export function advanceGalleryFlow(
     if (flights[index].slot >= capacity) flights[index] = { ...flights[index], slot: freeSlot(flights) };
   }
   let sequence = previous.sequence;
-  const launch = (row: GalleryRow, immediate: boolean, scatter: boolean) => {
+  /** Join initial archive entries mid-flight; show live arrivals from the bottom in a free slot. */
+  const launch = (row: GalleryRow, immediate: boolean, scatter: boolean, protectedUntil = 0) => {
     const duration = 18000 + random() * 12000;
     const offset = scatter ? random() * duration * .8 : 0;
-    flights.push({ id: row.id, key: ++sequence, slot: freeSlot(flights), expiresAt: now + duration - offset,
+    flights.push({ id: row.id, key: ++sequence, slot: freeSlot(flights), expiresAt: now + duration - offset, protectedUntil,
       duration, delay: -offset, x: .05 + random() * .9, drift: (random() - .5) * .35,
       scale: immediate ? 1 : .8 + random() * .2, tilt: (random() - .5) * 12, featured: immediate });
     shown.set(row.id, now);
   };
   // A new Realtime/polling arrival gets a visible slot immediately, without duplicates.
   const arrivals = previous.known.size ? rows.filter(row => !previous.known.has(row.id))
-    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)).slice(0, capacity) : [];
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)) : [];
   if (!previous.known.size) {
     const latest = rows.reduce((a, b) => a.created_at > b.created_at || a.created_at === b.created_at && a.id > b.id ? a : b);
     launch(latest, true, false);
@@ -80,12 +82,14 @@ export function advanceGalleryFlow(
       const replace = flights.reduce((best, flight, index) => {
         // Preserve interaction and every arrival already admitted in this update.
         if (held.has(flight.id) || flight.key > previous.sequence) return best;
+        // Let a fresh capture be seen before admitting the next overflow batch.
+        if (flight.protectedUntil > now) return best;
         return best < 0 || flight.expiresAt < flights[best].expiresAt ? index : best;
       }, -1);
       if (replace < 0) { known.delete(row.id); continue; }
       flights.splice(replace, 1);
     }
-    launch(row, true, false);
+    launch(row, true, false, now + 6000);
   }
   while (flights.length < Math.min(capacity, rows.length)) {
     const visible = new Set(flights.map(flight => flight.id));

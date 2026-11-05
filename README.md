@@ -113,6 +113,7 @@ Samotné založení nebo veřejná registrace účtu nezpřístupňuje fotky. Sc
 Přihlášení má vlastní klíč `vitani-prvaku.portrait-auth`, oddělený od původní aplikace.
 
 Ukládají se pouze hotové černobílé portréty. Plný snímek a barevný izolovaný portrét zůstávají v paměti prohlížeče.
+Při velké dávce nových portrétů galerie postupně vpouští všechny čekající fotky. Nový portrét chrání před výměnou po dobu šesti sekund, aby se dal prohlédnout; zastavené portréty obsluhy se nevytlačují.
 Při výpadku iPad drží maximálně pět neodeslaných PNG v paměti a nabízí opakování. Obnovení nebo zavření stránky tuto frontu ztratí.
 Po akci smažte soubory přes Storage dashboard/API a následně řádky portrétů; samotné SQL mazání storage.objects fyzické soubory neodstraní.
 Nativní aplikace ani výstavní instalace tento projekt nepoužívají.

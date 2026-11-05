@@ -67,6 +67,26 @@ test('polling batches display all admitted arrivals even when their flights expi
   assert.deepEqual(new Set(state.flights.map(flight => flight.id)), new Set(['new-a', 'new-b']));
 });
 
+test('overflow waits for readable visits and every queued portrait receives a turn', () => {
+  const rows = [row('old-a'), row('old-b')];
+  const random = randomSource();
+  let state = advanceGalleryFlow(emptyGalleryFlow(), rows, now, 2, new Set(), random);
+  const captures = Array.from({ length: 7 }, (_, index) => row(`new-${index}`, index * 1000));
+  const incoming = [...rows, ...captures];
+  state = advanceGalleryFlow(state, incoming, now + 100, 2, new Set(), random);
+  const firstVisit = state.flights.map(flight => flight.key);
+  const seen = new Set(state.flights.map(flight => flight.id));
+  state = advanceGalleryFlow(state, incoming, now + 1100, 2, new Set(), random);
+  assert.deepEqual(state.flights.map(flight => flight.key), firstVisit, 'overflow must not turn arrivals into one-second flashes');
+  for (let visit = 1; visit <= 4; visit++) {
+    state = advanceGalleryFlow(state, incoming, now + 100 + visit * 7000, 2, new Set(), random);
+    state.flights.forEach(flight => seen.add(flight.id));
+    assert.equal(state.flights.length, 2);
+    assert.equal(new Set(state.flights.map(flight => flight.id)).size, 2);
+  }
+  assert.ok(captures.every(capture => seen.has(capture.id)));
+});
+
 test('old portraits keep returning while fresh portraits get a temporary probability boost', () => {
   const rows = [row('old'), row('recent', 0)];
   function samples(time: number) {

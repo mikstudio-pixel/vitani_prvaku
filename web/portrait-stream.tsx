@@ -17,6 +17,7 @@ export function PortraitStream<T extends GalleryRow>({ rows, children }: { rows:
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
+    /** Refresh selection while leaving the CSS animation clocks and operator-held portraits intact. */
     const tick = () => {
       if (document.hidden) return;
       const held = new Set<string>();
