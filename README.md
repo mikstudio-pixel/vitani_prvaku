@@ -40,7 +40,7 @@ touch, drag over 24 CSS pixels, multiple fingers or loss of focus cancels it.
 Once full, the ring flashes twice. The face is isolated from the mirrored camera
 frame with room around the head, then converted into a five-tone monochrome
 mask at a fixed 128 × 128 resolution. Stretch and pixelation are always enabled.
-The visitor sees only the bowl and its purple LED ring, without portrait
+The visitor sees only the bowl and its lime (`#CDDC29`) LED ring, without portrait
 controls or camera preview images.
 The current liquid rearranges into the portrait over three seconds, holds for
 three seconds, then dissolves over two seconds back into the previous liquid.
@@ -104,7 +104,7 @@ Veřejný publishable klíč v klientu není heslo. Tabulky i privátní bucket 
 
 - `/pripojeni/`: jednorázové přihlášení zařízení e-mailem a heslem, nebo odhlášení.
 - `/`: iPad; po začátku vynořování se jednou uloží zpracovaný monochromní PNG s aktuálními čtverečky a roztažením. Pozdější změna slideru neupravuje již uloženou fotku.
-- `/galerie/`: počítač; všechny portréty se automaticky zmenšují na jednu obrazovku. Nové přicházejí přes Realtime. Křížek smaže chybnou fotku ze soukromého úložiště i galerie; po výpadku se stav synchronizuje každých 30 s.
+- `/galerie/`: počítač; všechny portréty se automaticky zmenšují na jednu obrazovku. Kruhové lemy používají stejnou limetkovou barvu `#CDDC29` jako blikání při focení. Nové přicházejí přes Realtime. Křížek smaže chybnou fotku ze soukromého úložiště i galerie; po výpadku se stav synchronizuje každých 30 s.
 
 V Authentication → Users vytvořte dva účty pomocí Add user → Create new user, ne pomocí e-mailové pozvánky.
 Jejich UUID přidejte administrátorským SQL do `portrait_access`: oba účty `can_upload=true` pro čtení, ukládání a mazání. Účet s `false` má pouze čtení.
