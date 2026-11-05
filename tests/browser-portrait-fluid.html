@@ -40,8 +40,9 @@
     assert(difference(pixelGuide, field(bowl.phaseForward)) < .00001, 'Turning pixelation on must restore the original square guide');
     const stillPortrait = material();
     bowl.spinPortrait();
+    bowl.spinPortrait();
     bowl.stepMaterial(1 / 30);
-    assert(difference(pixelGuide, field(bowl.phaseForward)) > .01, 'The portrait guide must turn as soon as the spin starts');
+    assert(difference(pixelGuide, field(bowl.phaseForward)) > .01, 'Two quick releases must still turn the portrait guide immediately');
     for (let i = 0; i < 24; i++) bowl.stepMaterial(1 / 30);
     assert(bowl.portraitPhase === 'holding', 'The spin must keep the portrait visible');
     assert(difference(stillPortrait, material()) > .03, 'The spin must move the liquid itself');

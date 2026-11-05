@@ -1005,10 +1005,11 @@ export class FluidBowl {
   private stepPortraitSpin(dt: number) {
     const remaining = this.portraitAngleTarget - this.portraitAngle;
     if (remaining === 0) return;
-    const angle = Math.abs(remaining) < .001 ? remaining : remaining * (1 - Math.exp(-dt * PORTRAIT_SPIN_DAMPING));
-    this.draw('portraitSpin', this.dye.write, { source: this.dye.read, angle });
+    const angle = Math.abs(remaining) < .001 ? this.portraitAngleTarget
+      : this.portraitAngle + remaining * (1 - Math.exp(-dt * PORTRAIT_SPIN_DAMPING));
+    this.draw('portraitSpin', this.dye.write, { source: this.dye.read, angle: angle - this.portraitAngle });
     this.swap(this.dye);
-    this.portraitAngle += angle;
+    this.portraitAngle = angle;
   }
   private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false, backgroundExtent = BOB_BACKGROUND_EXTENT, angle = 0) {
     this.prepareMaterialNoise();
@@ -1141,7 +1142,8 @@ export class FluidBowl {
     this.portraitElapsed = 0;
   }
   spinPortrait() {
-    if (this.disposed || !this.portraitActive) return;
+    if (this.disposed || !this.portraitActive || this.portraitAngle !== this.portraitAngleTarget) return;
+    // Finish the current turn before accepting another and keep the face readable.
     this.portraitAngleTarget = this.portraitAngleTarget === 0 ? PORTRAIT_SPIN_ANGLE : 0;
   }
   setPortraitPixelated(enabled: boolean) {
