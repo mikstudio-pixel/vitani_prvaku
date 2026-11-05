@@ -70,7 +70,7 @@ export function advanceGalleryFlow(
   };
   // A new Realtime/polling arrival gets a visible slot immediately, without duplicates.
   const arrivals = previous.known.size ? rows.filter(row => !previous.known.has(row.id))
-    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)).slice(0, capacity).reverse() : [];
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)).slice(0, capacity) : [];
   if (!previous.known.size) {
     const latest = rows.reduce((a, b) => a.created_at > b.created_at || a.created_at === b.created_at && a.id > b.id ? a : b);
     launch(latest, true, false);
@@ -78,7 +78,8 @@ export function advanceGalleryFlow(
   for (const row of arrivals) {
     if (flights.length >= capacity) {
       const replace = flights.reduce((best, flight, index) => {
-        if (held.has(flight.id)) return best;
+        // Preserve interaction and every arrival already admitted in this update.
+        if (held.has(flight.id) || flight.key > previous.sequence) return best;
         return best < 0 || flight.expiresAt < flights[best].expiresAt ? index : best;
       }, -1);
       if (replace < 0) { known.delete(row.id); continue; }

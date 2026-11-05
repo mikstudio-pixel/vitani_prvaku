@@ -58,6 +58,15 @@ test('an arrival replaces the portrait nearest expiry and leaves other stationar
   assert.equal(next.flights.find(flight => flight.id === 'new')!.slot, nearest.slot);
 });
 
+test('polling batches display all admitted arrivals even when their flights expire sooner', () => {
+  const rows = [row('old-a'), row('old-b')];
+  let state = advanceGalleryFlow(emptyGalleryFlow(), rows, now, 2, new Set(), randomSource());
+  state = { ...state, flights: state.flights.map(flight => ({ ...flight, expiresAt: now + 40000 })) };
+  const incoming = [...rows, row('new-a', 1000), row('new-b', 0)];
+  state = advanceGalleryFlow(state, incoming, now + 100, 2, new Set(), () => 0);
+  assert.deepEqual(new Set(state.flights.map(flight => flight.id)), new Set(['new-a', 'new-b']));
+});
+
 test('old portraits keep returning while fresh portraits get a temporary probability boost', () => {
   const rows = [row('old'), row('recent', 0)];
   function samples(time: number) {
