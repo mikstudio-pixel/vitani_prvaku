@@ -38,6 +38,14 @@
     assert(difference(pixelGuide, field(bowl.phaseForward)) > .02, 'Turning pixelation off must smooth the material guide');
     bowl.setPortraitPixelated(true); bowl.stepMaterial(1/30);
     assert(difference(pixelGuide, field(bowl.phaseForward)) < .00001, 'Turning pixelation on must restore the original square guide');
+    const stillPortrait = material();
+    bowl.spinPortrait();
+    bowl.spinPortrait();
+    bowl.stepMaterial(1 / 30);
+    assert(difference(pixelGuide, field(bowl.phaseForward)) > .01, 'Two quick releases must still turn the portrait guide immediately');
+    for (let i = 0; i < 24; i++) bowl.stepMaterial(1 / 30);
+    assert(bowl.portraitPhase === 'holding', 'The spin must keep the portrait visible');
+    assert(difference(stillPortrait, material()) > .03, 'The spin must move the liquid itself');
     bowl.render();
     output.textContent = 'Pixelated portrait gathered from the liquid. Waiting before dissolve…';
     const holdAt = performance.now(); while (performance.now() - holdAt < 4000) await frame();
@@ -47,7 +55,7 @@
     bowl.setPaused(false); bowl.setPortrait(source.getContext('2d').getImageData(0, 0, 512, 512)); bowl.reset();
     assert(!bowl.portraitActive, 'Reset must discard the portrait');
     assert(gl.getError() === gl.NO_ERROR, 'GPU mask and gathering must be error free');
-    output.textContent = 'PASS: pixelation on/off changes the liquid guide, stretch on/off, 16–160 grid, saved fluid unchanged, guided reveal, dissolve, repeat readiness, reset';
+    output.textContent = 'PASS: guided reveal, pixelation, stretch, spin of the portrait and liquid, saved fluid restored after dissolve, repeat readiness, reset';
   } catch (error) { output.textContent = `FAIL: ${error.message}`; console.error(error); }
   finally { bowl.dispose(); }
 </script></body></html>

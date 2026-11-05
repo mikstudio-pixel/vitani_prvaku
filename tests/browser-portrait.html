@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="cs" class="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) #fixture-controls {visibility:hidden}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="connect-src 'self' blob: data:"><title>Portrait visitor regression — synthetic camera</title><style>body:has(main[data-portrait="holding"]) #fixture-controls {visibility:hidden}</style></head>
 <body><div id="root"></div><aside id="fixture-controls" style="position:fixed;z-index:10;bottom:60px;left:12px;background:#111;padding:8px;font-size:12px"><button id="test">Testovat návštěvníky</button> <button id="freeze">Vyfotit a zastavit portrét</button> <button id="no-face">Záběr bez člověka</button> <output id="result">Umělá kamera; nejprve klepněte na mísu.</output></aside>
 <script type="module">
   import React from 'react';
@@ -24,8 +24,14 @@
     if (hasFace) context.drawImage(picture,0,0); requestAnimationFrame(paint);
   }; paint();
   let fluid;
+  let spins = 0;
   const setPortrait = FluidBowl.prototype.setPortrait;
   FluidBowl.prototype.setPortrait = function(image) { fluid = this; return setPortrait.call(this,image); };
+  const spinPortrait = FluidBowl.prototype.spinPortrait;
+  FluidBowl.prototype.spinPortrait = function() {
+    if (this.portraitActive) spins++;
+    spinPortrait.call(this);
+  };
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
     getUserMedia: async () => {
       if (new URLSearchParams(location.search).has('deny')) throw new DOMException('Synthetic denial', 'NotAllowedError');
@@ -75,19 +81,23 @@
       assert(root.dataset.portrait === 'idle', 'Dragging must cancel');
       pointer('pointerdown', 9003); pointer('pointerdown', 9004); await wait(1200); pointer('pointerup', 9003); pointer('pointerup', 9004);
       assert(root.dataset.portrait === 'idle', 'Two fingers must cancel');
-      pointer('pointerdown', 9005); await wait(1100); pointer('pointerup', 9005);
+      const previousSpins = spins;
+      pointer('pointerdown', 9005);
       await until(() => root.dataset.portrait === 'flash');
-      assert(root.dataset.portrait === 'flash', 'A one-second hold must take a photograph');
+      pointer('pointerup', 9005); pointer('lostpointercapture', 9005);
+      assert(spins === previousSpins, 'A release during the flash must wait for the portrait');
       result.textContent = 'První portrét vyfotografován. Ověřuji dalšího návštěvníka…';
-      await wait(4000);
-      assert(root.dataset.portrait === 'holding', 'Portrait must emerge after the flash');
+      await until(() => root.dataset.portrait === 'holding');
+      assert(spins === previousSpins + 1, 'The deferred spin must start once as the portrait appears');
+      pointer('pointerdown', 9007); pointer('pointerup', 9007); pointer('lostpointercapture', 9007);
+      await until(() => spins === previousSpins + 2, 1000);
       bowl.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'r' })); await wait(150);
       assert(root.dataset.portrait === 'idle', 'Reset must wait for another photograph');
       assert(root.dataset.camera === 'ready', 'Camera must remain warm between visitors');
       pointer('pointerdown', 9006); await wait(1100); pointer('pointerup', 9006);
       await until(() => root.dataset.portrait === 'flash');
       assert(root.dataset.portrait === 'flash', 'Second visitor must get a new photograph');
-      result.textContent = 'PASS: short touch, drag, multiple fingers, one-second capture, reset, second visitor';
+      result.textContent = 'PASS: short touch, drag, multiple fingers, one-second capture, release spins during flash and portrait, reset, second visitor';
     } catch (error) { result.textContent = `FAIL: ${error.message}`; console.error(error); }
   };
 </script></body></html>

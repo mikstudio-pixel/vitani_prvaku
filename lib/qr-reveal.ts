@@ -1,9 +1,16 @@
 // The guide is a chemical potential, not a concentration image. Every update
 // transfers existing dark material between cells, with equal/opposite fluxes.
+const ROTATE_UV = `
+vec2 rotateUv(vec2 p,float angle){
+ float c=cos(angle),s=sin(angle);
+ return mat2(c,s,-s,c)*(p-0.5)+0.5;
+}`;
+
 export const QR_SOURCES = {
-  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;uniform bool smoothPortrait;uniform float backgroundExtent;
+  qrGuide: `uniform sampler2D qr;uniform sampler2D noiseField;uniform float progress;uniform float extent;uniform bool portrait;uniform bool smoothPortrait;uniform float backgroundExtent;uniform float angle;
+${ROTATE_UV}
 void main(){
- vec2 p=(uv-0.5)/extent+0.5;
+ vec2 p=(rotateUv(uv,angle)-0.5)/extent+0.5;
  vec2 n=vec2(textureSize(qr,0)),cell=p*n;
  // Broad connected contours emerge first; there are no scattered bead targets.
  float sharpen=smoothstep(0.15,1.0,progress);
@@ -61,6 +68,11 @@ void main(){
   change+=transfer;
  }
  fragColor=vec4(state.r+change,0,0,1);
+}`,
+  portraitSpin: `uniform sampler2D source;uniform float angle;
+${ROTATE_UV}
+void main(){
+ fragColor=inside(uv)?sampleLinear(source,rotateUv(uv,angle)):vec4(0);
 }`,
   patternRestore: `uniform sampler2D source;uniform sampler2D original;uniform float blend;
 void main(){fragColor=mix(texture(source,uv),texture(original,uv),blend);}`,

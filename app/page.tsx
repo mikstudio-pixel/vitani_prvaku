@@ -23,7 +23,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const bowlRef = useRef<HTMLButtonElement>(null);
   const engine = useRef<FluidBowl | null>(null);
   const device = useRef<DeviceTilt | null>(null);
-  const pending = useRef<{ image: ImageData | null; at: number | null } | null>(null);
+  const pending = useRef<{ image: ImageData | null; at: number | null; spinOnReveal: boolean } | null>(null);
   const processor = useRef<PortraitProcessor | null>(null);
   const cancelHold = useRef(() => {});
   const touchPointer = useRef<number | null>(null);
@@ -49,7 +49,7 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
   const capture = useCallback((image: ImageData) => {
     if (!engine.current?.running || engine.current.portraitActive || pending.current) return;
     stopTouch();
-    const frame = { image: null as ImageData | null, at: null as number | null };
+    const frame = { image: null as ImageData | null, at: null as number | null, spinOnReveal: false };
     pending.current = frame; setPhase('processing'); setFlash(null);
     void processor.current?.process(image).then(result => {
       if (pending.current !== frame || !engine.current?.running || document.hidden) return;
@@ -127,7 +127,11 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         if (elapsed < FLASH_SECONDS) setFlash(elapsed);
         else {
           pending.current = null; setFlash(null);
-          try { engine.current?.setPortrait(frame.image, PORTRAIT_SIZE); void savePortrait.current(frame.image, PORTRAIT_SIZE); }
+          try {
+            engine.current?.setPortrait(frame.image, PORTRAIT_SIZE);
+            if (frame.spinOnReveal) engine.current?.spinPortrait();
+            void savePortrait.current(frame.image, PORTRAIT_SIZE);
+          }
           catch (cause) { setError(cause instanceof Error ? cause.message : 'Fotografii se nepodařilo zobrazit.'); }
         }
       }
@@ -153,9 +157,14 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
     if (contacts.current.size !== 1 || phase !== 'idle' || pending.current || engine.current?.portraitActive) { stopTouch(); return; }
     touchPointer.current = id; attract(clientX, clientY);
   };
-  const endTouch = (id: number) => {
-    contacts.current.delete(id); photo.up(id);
+  const endTouch = (id: number, released = false) => {
+    const tracked = contacts.current.delete(id);
+    photo.up(id);
     if (touchPointer.current === id) stopTouch();
+    if (released && tracked && contacts.current.size === 0) {
+      if (pending.current) pending.current.spinOnReveal = true;
+      else engine.current?.spinPortrait();
+    }
   };
 
   return <main className="installation" data-portrait={phase} data-camera={photo.state.phase} data-version={APP_VERSION}>
@@ -177,12 +186,12 @@ export default function Home({ photoEnabled = true }: { photoEnabled?: boolean }
         photo.move(event.pointerId, event.clientX, event.clientY);
         if (event.pointerId === touchPointer.current) attract(event.clientX, event.clientY);
       }}
-      onPointerUp={event => endTouch(event.pointerId)}
+      onPointerUp={event => endTouch(event.pointerId, true)}
       onPointerCancel={() => { photo.cancel(); cancelTouch(); }}
       onLostPointerCapture={event => endTouch(event.pointerId)}
       onBlur={() => { photo.cancel(); cancelTouch(); }} onContextMenu={event => event.preventDefault()}
       onDoubleClick={() => device.current?.calibrate()}
-      onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') endTouch(-1); }}
+      onKeyUp={event => { if (event.key === ' ' || event.key === 'Enter') endTouch(-1, true); }}
       onKeyDown={event => {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault();
