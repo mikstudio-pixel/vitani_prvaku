@@ -30,7 +30,9 @@ export function galleryStageLayout(width: number, height: number) {
   const size = portrait
     ? Math.min(width, height, Math.max(104, Math.min(360, width * .34, height * .25)))
     : Math.min(width, height, Math.max(88, Math.min(220, width * .26, height * .34)));
-  return { size, capacity: Math.max(1, Math.min(portrait ? 8 : 12, Math.floor(width * height / (size * size * (portrait ? 1.9 : 2.8))))) };
+  const room = Math.floor(width * height / (size * size * (portrait ? 1.9 : 2.8)));
+  const stationarySlots = Math.floor(width / size) * Math.floor(height / size);
+  return { size, capacity: Math.max(1, Math.min(portrait ? 8 : 12, room, stationarySlots)) };
 }
 
 // Recent portraits get up to eight times the weight, fading to normal in five minutes.

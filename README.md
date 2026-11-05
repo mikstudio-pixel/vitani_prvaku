@@ -114,7 +114,7 @@ Přihlášení má vlastní klíč `vitani-prvaku.portrait-auth`, oddělený od 
 
 Ukládají se pouze hotové černobílé portréty. Plný snímek a barevný izolovaný portrét zůstávají v paměti prohlížeče.
 Při velké dávce nových portrétů galerie postupně vpouští všechny čekající fotky. Nový portrét chrání před výměnou po dobu šesti sekund, aby se dal prohlédnout; zastavené portréty obsluhy se nevytlačují.
-Svislý displej (např. 1080 × 1920) má dvouřádkový nadpis, limetkové „prváci“ a nejvýše osm větších portrétů do 360 px. Pohyb střídá levou a pravou část displeje; při startu jsou portréty rozložené po výšce a u okrajů plynule mizí.
+Svislý displej (např. 1080 × 1920) má dvouřádkový nadpis, limetkový „Digitál“ a nejvýše osm větších portrétů do 360 px. Portréty vyplouvají z levé a pravé části displeje, při kontaktu se jemně odrazí a u okrajů plynule mizí.
 Při výpadku iPad drží maximálně pět neodeslaných PNG v paměti a nabízí opakování. Obnovení nebo zavření stránky tuto frontu ztratí.
 Po akci smažte soubory přes Storage dashboard/API a následně řádky portrétů; samotné SQL mazání storage.objects fyzické soubory neodstraní.
 Nativní aplikace ani výstavní instalace tento projekt nepoužívají.
