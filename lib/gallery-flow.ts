@@ -26,8 +26,11 @@ export const emptyGalleryFlow = (): GalleryFlow => ({ flights: [], known: new Se
 /** Keep portraits readable and bound concurrent image downloads to the stage size. */
 export function galleryStageLayout(width: number, height: number) {
   if (width <= 0 || height <= 0) return { size: 0, capacity: 0 };
-  const size = Math.min(width, height, Math.max(88, Math.min(220, width * .26, height * .34)));
-  return { size, capacity: Math.max(1, Math.min(12, Math.floor(width * height / (size * size * 2.8)))) };
+  const portrait = height > width * 1.15;
+  const size = portrait
+    ? Math.min(width, height, Math.max(104, Math.min(360, width * .34, height * .25)))
+    : Math.min(width, height, Math.max(88, Math.min(220, width * .26, height * .34)));
+  return { size, capacity: Math.max(1, Math.min(portrait ? 8 : 12, Math.floor(width * height / (size * size * (portrait ? 1.9 : 2.8))))) };
 }
 
 // Recent portraits get up to eight times the weight, fading to normal in five minutes.
@@ -64,7 +67,7 @@ export function advanceGalleryFlow(
   /** Join initial archive entries mid-flight; show live arrivals from the bottom in a free slot. */
   const launch = (row: GalleryRow, immediate: boolean, scatter: boolean, protectedUntil = 0) => {
     const duration = 18000 + random() * 12000;
-    const offset = scatter ? random() * duration * .8 : 0;
+    const offset = scatter ? duration * .86 * (flights.length + random() * .5) / Math.min(capacity, rows.length) : 0;
     flights.push({ id: row.id, key: ++sequence, slot: freeSlot(flights), expiresAt: now + duration - offset, protectedUntil,
       duration, delay: -offset, x: .05 + random() * .9, drift: (random() - .5) * .35,
       scale: immediate ? 1 : .8 + random() * .2, tilt: (random() - .5) * 12, featured: immediate });

@@ -21,6 +21,15 @@ test('large archives keep only a screen-sized set of distinct, readable portrait
   assert.equal(galleryStageLayout(0, 100).capacity, 0);
 });
 
+test('vertical installation screens use large portraits instead of filling the height with small circles', () => {
+  for (const [width, height] of [[994, 1470], [944, 1560], [650, 1100]]) {
+    const layout = galleryStageLayout(width, height);
+    assert.ok(layout.size >= width * .3);
+    assert.ok(layout.size <= 360);
+    assert.ok(layout.capacity >= 4 && layout.capacity <= 8);
+  }
+});
+
 test('newest portrait appears on initial load and a live arrival immediately replaces a slot', () => {
   const rows = Array.from({ length: 100 }, (_, index) => row(String(index)));
   const random = randomSource();

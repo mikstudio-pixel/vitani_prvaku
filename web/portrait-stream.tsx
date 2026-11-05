@@ -8,7 +8,7 @@ export function PortraitStream<T extends GalleryRow>({ rows, children }: { rows:
   const [flights, setFlights] = useState<PortraitFlight[]>([]);
   const layout = galleryStageLayout(bounds.width, bounds.height);
   const byId = new Map(rows.map(row => [row.id, row]));
-  const columns = Math.max(1, Math.min(layout.capacity, Math.ceil(Math.sqrt(layout.capacity * bounds.width / Math.max(1, bounds.height)))));
+  const columns = Math.max(1, Math.min(layout.capacity, Math.floor(bounds.width / Math.max(1, layout.size))));
   const staticRows = Math.max(1, Math.ceil(layout.capacity / columns));
   useEffect(() => {
     if (!stage.current) return;
@@ -39,11 +39,14 @@ export function PortraitStream<T extends GalleryRow>({ rows, children }: { rows:
       const size = layout.size * flight.scale;
       const travel = Math.max(0, bounds.width - size);
       const clamp = (x: number) => Math.max(0, Math.min(1, x));
+      const x = bounds.height > bounds.width * 1.15
+        ? clamp(.12 + flight.slot % 2 * .68 + (flight.x - .5) * .18)
+        : flight.x;
       const style = {
         width: size, height: size,
         animationDuration: `${flight.duration}ms`, animationDelay: `${flight.delay}ms`,
-        '--flight-x': `${travel * flight.x}px`, '--flight-mid-x': `${travel * clamp(flight.x + flight.drift)}px`,
-        '--flight-end-x': `${travel * clamp(flight.x - flight.drift)}px`,
+        '--flight-x': `${travel * x}px`, '--flight-mid-x': `${travel * clamp(x + flight.drift)}px`,
+        '--flight-end-x': `${travel * clamp(x - flight.drift)}px`,
         '--flight-start-y': `${Math.max(0, bounds.height - size)}px`, '--flight-mid-y': `${(bounds.height - size) * .4}px`,
         '--flight-end-y': `${-size - 20}px`, '--flight-tilt': `${flight.tilt}deg`,
         '--still-x': `${(flight.slot % columns + .5) * bounds.width / columns - size / 2}px`,

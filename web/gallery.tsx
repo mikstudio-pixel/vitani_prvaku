@@ -89,7 +89,7 @@ export function Gallery() {
     return () => { active = false; subscription.data.subscription.unsubscribe(); if (timer) clearInterval(timer); if (channel) void portraitBackend.removeChannel(channel); };
   }, [onDeleted]);
   return <main className="portrait-gallery" data-version={APP_VERSION}>
-    <h1 className="gallery-title">Digitální prváci</h1>
+    <h1 className="gallery-title"><span>Digitální</span> <span>prváci</span></h1>
     <PortraitStream rows={rows}>{row => <Portrait row={row} canDelete={canDelete} onDeleted={onDeleted} />}</PortraitStream>
     {!rows.length && <div className="gallery-empty"><p>{status || 'Čekám na první portrét…'}</p>{!authorized && <a href={`${base}/pripojeni/`}>Připojit zařízení</a>}</div>}
     {rows.length > 0 && status && <output className="gallery-status">{status}</output>}
