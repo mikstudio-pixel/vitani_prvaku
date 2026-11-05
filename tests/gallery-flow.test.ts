@@ -44,6 +44,20 @@ test('layout measurement does not consume arrivals before there is room to displ
   assert.ok(state.flights[0].delay === 0);
 });
 
+test('an arrival replaces the portrait nearest expiry and leaves other stationary slots unchanged', () => {
+  const rows = [row('a'), row('b'), row('latest', 0)];
+  const random = randomSource();
+  const initial = advanceGalleryFlow(emptyGalleryFlow(), rows, now, 3, new Set(), random);
+  const nearest = initial.flights.reduce((a, b) => a.expiresAt < b.expiresAt ? a : b);
+  const next = advanceGalleryFlow(initial, [...rows, row('new', 0)], now + 100, 3, new Set(), random);
+  assert.ok(!next.flights.some(flight => flight.id === nearest.id));
+  for (const flight of next.flights) {
+    const before = initial.flights.find(item => item.id === flight.id);
+    if (before) assert.equal(flight.slot, before.slot);
+  }
+  assert.equal(next.flights.find(flight => flight.id === 'new')!.slot, nearest.slot);
+});
+
 test('old portraits keep returning while fresh portraits get a temporary probability boost', () => {
   const rows = [row('old'), row('recent', 0)];
   function samples(time: number) {
@@ -81,6 +95,8 @@ test('deletion, smaller screens, empty archives and long-running rotation remain
   rows = rows.filter(item => item.id !== deleted);
   state = advanceGalleryFlow(state, rows, now + 1000, 3, new Set(), random);
   assert.equal(state.flights.length, 3);
+  assert.equal(new Set(state.flights.map(flight => flight.slot)).size, 3);
+  assert.ok(state.flights.every(flight => flight.slot >= 0 && flight.slot < 3));
   assert.ok(!state.flights.some(flight => flight.id === deleted));
   const seen = new Set<string>();
   for (let tick = 1; tick <= 300; tick++) {

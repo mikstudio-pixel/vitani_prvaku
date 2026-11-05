@@ -2,6 +2,7 @@ export type GalleryRow = { id: string; created_at: string };
 export type PortraitFlight = {
   id: string;
   key: number;
+  slot: number;
   expiresAt: number;
   duration: number;
   delay: number;
@@ -18,8 +19,10 @@ export type GalleryFlow = {
   sequence: number;
   updatedAt: number;
 };
+/** Create a fresh selection without retaining any archive IDs. */
 export const emptyGalleryFlow = (): GalleryFlow => ({ flights: [], known: new Set(), shown: new Map(), sequence: 0, updatedAt: 0 });
 
+/** Keep portraits readable and bound concurrent image downloads to the stage size. */
 export function galleryStageLayout(width: number, height: number) {
   if (width <= 0 || height <= 0) return { size: 0, capacity: 0 };
   const size = Math.min(width, height, Math.max(88, Math.min(220, width * .26, height * .34)));
@@ -32,6 +35,14 @@ function weight(row: GalleryRow, now: number) {
   return 1 + 7 * Math.max(0, 1 - age / 300000);
 }
 
+/** Reuse an empty stationary position without shifting other visible portraits. */
+function freeSlot(flights: readonly PortraitFlight[]) {
+  let slot = 0;
+  while (flights.some(flight => flight.slot === slot)) slot++;
+  return slot;
+}
+
+/** Advance bounded flights, admit new captures, and rotate the archive with a temporary freshness boost. */
 export function advanceGalleryFlow(
   previous: GalleryFlow, rows: readonly GalleryRow[], now: number, capacity: number,
   held: ReadonlySet<string> = new Set(), random: () => number = Math.random,
@@ -45,11 +56,14 @@ export function advanceGalleryFlow(
     .map(flight => held.has(flight.id) ? { ...flight, expiresAt: flight.expiresAt + elapsed } : flight);
   // Keep the latest arrivals when the screen becomes smaller.
   flights = flights.slice(-capacity);
+  for (let index = 0; index < flights.length; index++) {
+    if (flights[index].slot >= capacity) flights[index] = { ...flights[index], slot: freeSlot(flights) };
+  }
   let sequence = previous.sequence;
   const launch = (row: GalleryRow, immediate: boolean, scatter: boolean) => {
     const duration = 18000 + random() * 12000;
     const offset = scatter ? random() * duration * .8 : 0;
-    flights.push({ id: row.id, key: ++sequence, expiresAt: now + duration - offset,
+    flights.push({ id: row.id, key: ++sequence, slot: freeSlot(flights), expiresAt: now + duration - offset,
       duration, delay: -offset, x: .05 + random() * .9, drift: (random() - .5) * .35,
       scale: immediate ? 1 : .8 + random() * .2, tilt: (random() - .5) * 12, featured: immediate });
     shown.set(row.id, now);
@@ -63,7 +77,10 @@ export function advanceGalleryFlow(
   }
   for (const row of arrivals) {
     if (flights.length >= capacity) {
-      const replace = flights.findIndex(flight => !held.has(flight.id));
+      const replace = flights.reduce((best, flight, index) => {
+        if (held.has(flight.id)) return best;
+        return best < 0 || flight.expiresAt < flights[best].expiresAt ? index : best;
+      }, -1);
       if (replace < 0) { known.delete(row.id); continue; }
       flights.splice(replace, 1);
     }

@@ -4,6 +4,7 @@ import { deletePortrait, deviceAccess, portraitBackend, type PortraitRow } from 
 import { APP_VERSION } from '@/lib/app-version';
 import { PortraitStream } from './portrait-stream';
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+/** Download one visible portrait and keep deletion errors attached to its controls. */
 function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: boolean; onDeleted: (id: string) => void }) {
   const [url, setUrl] = useState(''), [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -33,6 +34,7 @@ function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: 
     {deleteError && <output className="gallery-delete-error" role="alert">{deleteError}</output>}
   </figure>;
 }
+/** Reconcile the private archive through Realtime and polling, then feed the bounded stream. */
 export function Gallery() {
   const [rows, setRows] = useState<PortraitRow[]>([]), [status, setStatus] = useState('Připojuji galerii…'), [authorized, setAuthorized] = useState(false);
   const changes = useRef(0);
