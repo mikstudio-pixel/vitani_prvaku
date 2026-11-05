@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LoaderCircle, X } from 'lucide-react';
-import { deletePortrait, deviceAccess, portraitBackend, type PortraitRow } from '@/lib/portrait-backend';
+import { deletePortrait, deviceAccess, portraitBackend, portraitBucket, portraitTable, type PortraitRow } from '@/lib/portrait-backend';
 import { APP_VERSION } from '@/lib/app-version';
 import { PortraitStream } from './portrait-stream';
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -11,7 +11,7 @@ function Portrait({ row, canDelete, onDeleted }: { row: PortraitRow; canDelete: 
   const [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState('');
   useEffect(() => {
     let active = true, objectUrl = ''; setFailed(false);
-    void portraitBackend.storage.from('portraits').download(row.object_path).then(({ data, error }) => {
+    void portraitBackend.storage.from(portraitBucket).download(row.object_path).then(({ data, error }) => {
       if (!active) return;
       if (error || !data) { setFailed(true); return; }
       objectUrl = URL.createObjectURL(data); setUrl(objectUrl);
@@ -58,7 +58,7 @@ export function Gallery() {
       const revision = changes.current, incoming: PortraitRow[] = [];
       try {
         for (let start = 0; active; start += 1000) {
-          const { data, error } = await portraitBackend.from('portraits').select('id,created_at,object_path').order('created_at').order('id').range(start, start + 999);
+          const { data, error } = await portraitBackend.from(portraitTable).select('id,created_at,object_path').order('created_at').order('id').range(start, start + 999);
           if (error) throw error;
           incoming.push(...(data || []));
           if (!data || data.length < 1000) break;
@@ -76,8 +76,8 @@ export function Gallery() {
       setAuthorized(true);
       setCanDelete(access.canUpload);
       channel = portraitBackend.channel('vitani-prvaku-gallery')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'portraits' }, payload => merge([payload.new as PortraitRow]))
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'portraits' }, payload => { if (active) onDeleted(payload.old.id); })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: portraitTable }, payload => merge([payload.new as PortraitRow]))
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: portraitTable }, payload => { if (active) onDeleted(payload.old.id); })
         .subscribe(state => {
         if (state === 'SUBSCRIBED') void reconcile();
         else if (active && (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT')) setStatus('Spojení přerušeno · obnovuji…');

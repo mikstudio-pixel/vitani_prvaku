@@ -7,6 +7,9 @@ export const portraitBackend = createClient(
   'sb_publishable_TY9OtlfFAUz6J2fNK4Ribg_4z4qKKmK',
   { auth: { storageKey: 'vitani-prvaku.portrait-auth', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } },
 );
+export const portraitTable = 'portraits_working';
+export const portraitBucket = 'portraits-working';
+
 export type PortraitRow = { id: string; created_at: string; object_path: string };
 export type DeviceAccess = { userId: string; canUpload: boolean };
 export async function deviceAccess(): Promise<DeviceAccess | null> {
@@ -27,17 +30,17 @@ export async function portraitPng(image: ImageData, size: number): Promise<Blob>
 }
 export async function publishPortrait(id: string, blob: Blob, userId: string) {
   const path = `${id}.png`;
-  const { error: uploadError } = await portraitBackend.storage.from('portraits').upload(path, blob, { contentType: 'image/png', upsert: false });
+  const { error: uploadError } = await portraitBackend.storage.from(portraitBucket).upload(path, blob, { contentType: 'image/png', upsert: false });
   // Retry the same UUID after an interrupted response, without overwriting anything.
   if (uploadError && String(uploadError.statusCode) !== '409') throw uploadError;
-  const { error } = await portraitBackend.from('portraits').insert({ id, object_path: path, created_by: userId });
+  const { error } = await portraitBackend.from(portraitTable).insert({ id, object_path: path, created_by: userId });
   if (error && error.code !== '23505') throw error;
 }
 
 export async function deletePortrait(row: PortraitRow) {
-  const { error: fileError } = await portraitBackend.storage.from('portraits').remove([row.object_path]);
+  const { error: fileError } = await portraitBackend.storage.from(portraitBucket).remove([row.object_path]);
   if (fileError) throw fileError;
-  const { error, data } = await portraitBackend.from('portraits').delete().eq('id', row.id).select('id');
+  const { error, data } = await portraitBackend.from(portraitTable).delete().eq('id', row.id).select('id');
   if (error) throw error;
   if (!data?.length) throw new Error('Portrét nelze smazat. Ověř oprávnění účtu.');
 }

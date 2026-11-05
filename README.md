@@ -118,3 +118,5 @@ Svislý displej (např. 1080 × 1920) má dvouřádkový nadpis, limetkový „D
 Při výpadku iPad drží maximálně pět neodeslaných PNG v paměti a nabízí opakování. Obnovení nebo zavření stránky tuto frontu ztratí.
 Po akci smažte soubory přes Storage dashboard/API a následně řádky portrétů; samotné SQL mazání storage.objects fyzické soubory neodstraní.
 Nativní aplikace ani výstavní instalace tento projekt nepoužívají.
+
+Původní tabulka `portraits` a soukromé úložiště `portraits` tvoří archiv. Aplikace do nich může jen nahlížet. Provoz používá tabulku `portraits_working` a soukromé úložiště `portraits-working` se samostatnými kopiemi PNG. Před spuštěním `supabase/activate-working-portraits.sql` se soubory musí nakopírovat přes Storage API. Migrace zkontroluje, že pro každý záznam existuje původní i pracovní soubor, a potom v jedné transakci ochrání archiv před zápisem z aplikace.
