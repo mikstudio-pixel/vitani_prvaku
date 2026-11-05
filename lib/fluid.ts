@@ -25,6 +25,8 @@ const OUTER_RADIUS = 0.495;
 const VISIBLE_RADIUS = 0.5 / 1.1;
 const MAX_STEP = 1 / 240; // Resolves gravity waves at the 192-cell grid spacing.
 const BASE_VISCOSITY = 0.0005;
+const PORTRAIT_SPIN_ANGLE = .42;
+const PORTRAIT_SPIN_DAMPING = 5;
 const VERTEX = `#version 300 es
 precision highp float;
 out vec2 uv;
@@ -501,6 +503,8 @@ export class FluidBowl {
   private portraitPattern: Target;
   private portraitOriginal: Target;
   private portraitElapsed = -1;
+  private portraitAngle = 0;
+  private portraitAngleTarget = 0;
   private portraitPixelated = true;
   private qrPattern: Target;
   private qrElapsed = -1;
@@ -911,10 +915,13 @@ export class FluidBowl {
     if ((visitor || this.easterEggActive) && pattern && original) {
       const previous = visitor ? this.portraitElapsed : this.bobElapsed;
       const elapsed = Math.min(BOB_SECONDS, previous + dt);
-      if (visitor) this.portraitElapsed = elapsed; else this.bobElapsed = elapsed;
+      if (visitor) {
+        this.portraitElapsed = elapsed;
+        this.stepPortraitSpin(dt);
+      } else this.bobElapsed = elapsed;
       const dissolveAt = BOB_TIMING.reveal + BOB_TIMING.hold;
       if (elapsed <= dissolveAt) {
-        this.gatherPattern(dt, dt, pattern, Math.min(1, elapsed / BOB_TIMING.reveal), true, visitor ? .92 : BOB_BACKGROUND_EXTENT);
+        this.gatherPattern(dt, dt, pattern, Math.min(1, elapsed / BOB_TIMING.reveal), true, visitor ? .92 : BOB_BACKGROUND_EXTENT, visitor ? this.portraitAngle : 0);
       } else {
         // Return to the saved liquid field smoothly, conserving its phase ratio.
         const ease = (time: number) => { const t = Math.max(0, Math.min(1, (time - dissolveAt) / BOB_TIMING.dissolve)); return t * t * (3 - 2 * t); };
@@ -995,9 +1002,17 @@ export class FluidBowl {
     this.swap(this.dye);
     this.stepCrests(dt);
   }
-  private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false, backgroundExtent = BOB_BACKGROUND_EXTENT) {
+  private stepPortraitSpin(dt: number) {
+    const remaining = this.portraitAngleTarget - this.portraitAngle;
+    if (remaining === 0) return;
+    const angle = Math.abs(remaining) < .001 ? remaining : remaining * (1 - Math.exp(-dt * PORTRAIT_SPIN_DAMPING));
+    this.draw('portraitSpin', this.dye.write, { source: this.dye.read, angle });
+    this.swap(this.dye);
+    this.portraitAngle += angle;
+  }
+  private gatherPattern(dt: number, chemistryDt: number, pattern: Target, progress: number, portrait = false, backgroundExtent = BOB_BACKGROUND_EXTENT, angle = 0) {
     this.prepareMaterialNoise();
-    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait, smoothPortrait: this.portraitActive && !this.portraitPixelated, backgroundExtent });
+    this.draw('qrGuide', this.phaseForward, { qr: pattern, noiseField: this.phaseNoise, progress, extent: portrait ? BOB_EXTENT : QR_EXTENT, portrait, smoothPortrait: this.portraitActive && !this.portraitPixelated, backgroundExtent, angle });
     const steps = Math.ceil(dt * 240);
     for (let i = 0; i < steps; i++) {
       this.draw('qrChemical', this.phaseChemical, { phase: this.dye.read, guide: this.phaseForward, progress });
@@ -1122,7 +1137,12 @@ export class FluidBowl {
     this.clearTelemetry(); this.onTelemetry?.(null);
     this.draw('patternRestore', this.portraitOriginal, { source: this.dye.read, original: this.dye.read, blend: 0 });
     this.uploadPortrait(image, resolution);
+    this.portraitAngle = 0; this.portraitAngleTarget = 0;
     this.portraitElapsed = 0;
+  }
+  spinPortrait() {
+    if (this.disposed || !this.portraitActive) return;
+    this.portraitAngleTarget = this.portraitAngleTarget === 0 ? PORTRAIT_SPIN_ANGLE : 0;
   }
   setPortraitPixelated(enabled: boolean) {
     if (this.disposed || this.portraitPixelated === enabled) return;
