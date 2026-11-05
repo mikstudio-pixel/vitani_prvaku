@@ -104,7 +104,7 @@ Veřejný publishable klíč v klientu není heslo. Tabulky i privátní bucket 
 
 - `/pripojeni/`: jednorázové přihlášení zařízení e-mailem a heslem, nebo odhlášení.
 - `/`: iPad; po začátku vynořování se jednou uloží zpracovaný monochromní PNG s aktuálními čtverečky a roztažením. Pozdější změna slideru neupravuje již uloženou fotku.
-- `/galerie/`: počítač; všechny portréty se automaticky zmenšují na jednu obrazovku. Kruhové lemy používají stejnou limetkovou barvu `#CDDC29` jako blikání při focení. Nové přicházejí přes Realtime. Křížek smaže chybnou fotku ze soukromého úložiště i galerie; po výpadku se stav synchronizuje každých 30 s.
+- `/galerie/`: počítač; na obrazovce pomalu vyplouvá nejvýše 12 velkých portrétů, podle velikosti displeje. Každý průlet trvá 18–30 sekund, s různou velikostí, natočením a bočním pohybem. Nový portrét dostane místo hned; prvních pět minut má až osminásobnou šanci na další zobrazení, pak se jeho váha plynule vrátí k běžné. Starší fotky zůstávají ve výběru a nedávno zobrazené mají krátkou pauzu pro pestřejší střídání. Načítají se pouze právě zobrazené obrázky. Při najetí myší, zaměření klávesnicí nebo mazání se portrét zastaví. Při omezení pohybu v systému se fotky střídají bez poletování. Kruhové lemy používají stejnou limetkovou barvu `#CDDC29` jako blikání při focení. Nové přicházejí přes Realtime. Křížek smaže chybnou fotku ze soukromého úložiště i galerie; po výpadku se stav synchronizuje každých 30 s.
 
 V Authentication → Users vytvořte dva účty pomocí Add user → Create new user, ne pomocí e-mailové pozvánky.
 Jejich UUID přidejte administrátorským SQL do `portrait_access`: oba účty `can_upload=true` pro čtení, ukládání a mazání. Účet s `false` má pouze čtení.
