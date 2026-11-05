@@ -23,6 +23,7 @@
   --primary:#bdbdbd; --primary-foreground:#151515; --secondary:#303030;
   --muted:#242424; --muted-foreground:#a3a3a3; --border:#343434;
   --destructive:#bbbbbb; --radius:.5rem;
+  --portrait-accent:#CDDC29;
 }
 * {box-sizing:border-box}
 html,body {margin:0;width:100%;height:100%;overflow:hidden;background:#111111;overscroll-behavior:none}
@@ -43,8 +44,8 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .fluid-window[data-rim-mode="edge"] .fluid-canvas {inset:-0.50505%;width:101.0101%;height:101.0101%}
 .tilt-ring {position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;fill:none}
 .led-housing {fill:#2c3034}
-.led-light {fill:#a855f7;filter:drop-shadow(0 0 1.4px #a855f7) drop-shadow(0 0 3.5px #a855f799)}
-.led-peak {fill:#a855f7;filter:drop-shadow(0 0 1.2px #a855f7) drop-shadow(0 0 4px #a855f7) drop-shadow(0 0 9px #a855f7b3)}
+.led-light {fill:var(--portrait-accent);filter:drop-shadow(0 0 1.4px var(--portrait-accent)) drop-shadow(0 0 3.5px #CDDC2999)}
+.led-peak {fill:var(--portrait-accent);filter:drop-shadow(0 0 1.2px var(--portrait-accent)) drop-shadow(0 0 4px var(--portrait-accent)) drop-shadow(0 0 9px #CDDC29b3)}
 .led-light,.led-peak {transition:none}
 @media(prefers-reduced-motion:reduce){.led-light,.led-peak{transition:none}}
 
@@ -69,7 +70,7 @@ body {color:#eeeeee;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-s
 .portrait-gallery { --gallery-gap: clamp(20px, 3vh, 36px); --gallery-padding: 20px; position: fixed; inset: 0; height: 100dvh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gallery-gap); background: #111; color: #eee; padding: var(--gallery-padding); font: 16px/1.5 sans-serif; }
 .gallery-title { margin: 0; text-align: center; font-family: 'PP Neue Machina', sans-serif; font-size: clamp(39.1px, 6.9vw, 82.8px); font-weight: 500; line-height: 1.1; letter-spacing: -.025em; transform: translateY(calc((var(--gallery-gap) + var(--gallery-top-space, 0px) - var(--gallery-padding)) / 2)); }
 .gallery-grid { grid-area: 2 / 1; display: grid; width: 100%; height: 100%; min-height: 0; align-content: center; justify-content: center; }
-.gallery-portrait { position: relative; container-type: inline-size; margin: 0; min-width: 0; min-height: 0; aspect-ratio: 1; border-radius: 50%; background: #fff; animation: portrait-arrive .7s ease-out; }
+.gallery-portrait { position: relative; container-type: inline-size; margin: 0; min-width: 0; min-height: 0; aspect-ratio: 1; border-radius: 50%; background: var(--portrait-accent); animation: portrait-arrive .7s ease-out; }
 .gallery-portrait img { position: absolute; inset: 3.5%; display: block; width: 93%; height: 93%; border-radius: 50%; object-fit: cover; image-rendering: pixelated; }
 .gallery-portrait:focus-visible { outline: 1px solid #777; outline-offset: 2px; }
 .gallery-retry { width: 100%; height: 100%; cursor: pointer; color: #555; font-size: min(12px, 12cqi); }
